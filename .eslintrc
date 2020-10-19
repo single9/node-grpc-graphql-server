@@ -1,0 +1,29 @@
+{
+  "rules": {
+    "indent": [
+        "error",
+        2
+    ],
+    "linebreak-style": [
+        "error",
+        "unix"
+    ],
+    "quotes": [
+        "warn",
+        "single"
+    ],
+    "semi": [
+        "error",
+        "always"
+    ],
+    "max-len": "off",
+    "one-var": "off",
+    "no-unused-vars": "warn",
+    "no-console": "off",
+    "space-before-function-paren": "off"
+  },
+  "parserOptions": {
+    "sourceType": "module",
+    "ecmaVersion": 6
+  }
+}
