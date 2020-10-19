@@ -9,6 +9,8 @@ Installation
 Usage
 -----
 
+### Server
+
 Create a file named `hello.proto` and put it into directory `conf/rpc`.
 
 The location of the file is specified by the environment `RPC_CONFS`. Default is `/conf/rpc`.
@@ -96,5 +98,40 @@ if (rpcServer.gqlServer) {
 
 app.listen(3000, () => {
   console.log('Server started. http://localhost:3000');
+});
+```
+
+### Client
+
+```js
+const RPCServer = require('grpc-graphql-server').RPCService;
+const rpcService = new RPCService({
+  packages: [
+    {
+      name: 'helloworld',
+      services: [
+        {
+          name: 'Greeter',
+          // port: 50052,  // Uncomment this to set gRPC client port to 50052
+        }
+      ]
+    },
+  ]
+});
+
+const rpcClient = rpcService.clients;
+
+rpcClient.helloworld.Greeter.sayHello({ name: 'test' }, function (err, response) {
+  if (response)
+    console.log('Greeting :', response.message);
+  else
+    console.log('no response')
+});
+
+rpcClient.helloworld.Greeter.sayHelloAgain({ name: 'test again' }, function (err, response) {
+  if (response)
+    console.log('Greeting again:', response.message);
+  else
+    console.log('no response')
 });
 ```
