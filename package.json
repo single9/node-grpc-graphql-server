@@ -16,5 +16,9 @@
     "url": "https://github.com/single9/node-grpc-graphql-server"
   },
   "author": "Duye Chen",
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "mocha": "^8.2.0",
+    "should": "^13.2.3"
+  }
 }
