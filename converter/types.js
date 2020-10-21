@@ -29,10 +29,33 @@ function findType(input) {
 
 /**
  * Convert protobufType to GraphQL Type
- * @param {string} protobufType 
+ * @param {TypeField} protobufTypeField 
  */
-function convertType(protobufType) {
-  return findType(protobufType);
+function convertType(protobufTypeField) {
+  const label = protobufTypeField.label;
+  const protobufType = protobufTypeField.type;
+  const gqlType = findType(protobufType);
+  let myType = gqlType || protobufTypeField.typeName;
+
+  switch (label) {
+    case 'LABEL_OPTIONAL':
+      // myType = gqlType;
+      break;
+    case 'LABEL_REPEATED':
+      myType = `[${myType}]`;
+      break;
+    case 'LABEL_REQUIRED':
+      myType = `${myType}!`;
+      break;
+  }
+  return myType;
 }
 
 module.exports = convertType;
+
+/**
+ * @typedef {object} TypeField
+ * @property {string} name
+ * @property {string} type
+ * @property {string} label
+ */

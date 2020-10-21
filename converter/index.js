@@ -20,8 +20,6 @@ let tmplCustomInput =
   {{TypeDesc}}
 }\n`;
 
-
-
 /**
  * Generate function description schema with GraphQL language
  *
@@ -82,6 +80,46 @@ function converter(packageObjects, configs) {
   let gqlMutationPackages = [];
   let gqlTypes = '';
 
+  function typeConverter(packageObj, protobufMessageName, isInput = false) {
+    let result = '';
+    const protobufMessage = packageObj[protobufMessageName];
+    
+    if (!protobufMessage) return '';
+
+    const messageType = protobufMessage.type;
+    const typeField = messageType.field;
+
+    if (!protobufMessage) return '';
+
+    const typeName = messageType.name;
+    const functions = typeField.map(field => {
+      return {
+        name: field.name,
+        responseType: toGqlTypes(field),
+      };
+    });
+    let __messageType = typeField && typeField.filter(field => field.type === 'TYPE_MESSAGE');
+
+    if (__messageType) {
+      for (let messageItem of __messageType) {
+        result += typeConverter(packageObj, messageItem.typeName);
+      }
+    }
+
+    if (typeName && convertedTypes.indexOf(typeName) === -1) {
+      result += genGqlType([
+        {
+          isInput: isInput,
+          name: messageType.name,
+          functions: functions,
+        },
+      ]);
+      convertedTypes.push(typeName);
+    }
+
+    return result;
+  }
+
   packageKeys.forEach(packageKey => {
     let gqlServiceType = '';
     for (let protosType in packageObjects[packageKey]) {
@@ -127,7 +165,9 @@ function converter(packageObjects, configs) {
       ]);
 
       const serviceKeys = Object.keys(packageObj[protosType].service);
-      serviceKeys.forEach(service => {
+
+      for (let i = 0; i < serviceKeys.length; i++) {
+        let service = serviceKeys[i];
         const serviceName = service;
         const serviceObj = packageObj[protosType].service[service];
         const requestType = serviceObj.requestType.type;
@@ -145,50 +185,15 @@ function converter(packageObjects, configs) {
         });
 
         // req (input) type
-        const reqTypeField = packageObj[requestType.name].type.field;
-        const requestTypeName = requestType && requestType.name;
-        if (requestTypeName && convertedTypes.indexOf(requestTypeName) < 0) {
-          gqlTypes += genGqlType([
-            {
-              isInput: true,
-              name: requestType.name,
-              functions: reqTypeField.map(field => {
-                return {
-                  name: field.name,
-                  responseType: toGqlTypes(field.type),
-                };
-              }),
-            },
-          ]);
-
-          convertedTypes.push(requestTypeName);
-        }
-
-        // res type
-        const resTypeField = packageObj[responseType.name].type.field;
-        const responseTypeName = responseType && responseType.name;
-        if (responseTypeName && convertedTypes.indexOf(responseTypeName) < 0) {
-          gqlTypes += genGqlType([
-            {
-              name: responseType.name,
-              functions: resTypeField.map(field => {
-                return {
-                  name: field.name,
-                  responseType: toGqlTypes(field.type),
-                };
-              }),
-            },
-          ]);
-
-          convertedTypes.push(responseTypeName);
-        }
-      });
+        gqlTypes += typeConverter(packageObj, requestType.name, true);
+        // res
+        gqlTypes += typeConverter(packageObj, responseType.name);
+      }
 
       gqlServiceType = (genGqlFunctionDescribe(serviceType));
       gqlTypes += tmplCustomType.replace('{{TypeName}}', protosType).replace('{{TypeDesc}}', gqlServiceType);
     }
   });
-
   const querySchema = gqlQueryPackages.length > 0 && genGqlQuery(gqlQueryPackages) || '';
   const mutationSchema = gqlMutationPackages.length > 0 && genGqlMutation(gqlMutationPackages) || '';
   return gqlTypes + querySchema + mutationSchema;
