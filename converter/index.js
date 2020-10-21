@@ -99,7 +99,7 @@ function converter(packageObjects, configs) {
 
     if (__messageType) {
       for (let messageItem of __messageType) {
-        result += typeConverter(packageObj, messageItem.typeName);
+        result += typeConverter(packageObj, messageItem.typeName, isInput);
       }
     }
 
