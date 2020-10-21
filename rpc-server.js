@@ -50,11 +50,12 @@ class RPCServer extends EventEmitter {
    * Creates an instance of RPC Server
    * @param {ServerConstructorParams} param0 
    */
-  constructor({ip = '0.0.0.0', port = 50051, creds, graphql, packages}) {
+  constructor({protoFile, ip = '0.0.0.0', port = 50051, creds, graphql, packages}) {
     super();
 
     this.gqlServer = undefined;
     this.rpcService = new RPCService({
+      protoFile,
       grpcServer: new grpc.Server(),
       packages
     });
@@ -82,6 +83,7 @@ module.exports = RPCServer;
 
 /**
  * @typedef  {object} ServerConstructorParams
+ * @property {string|string[]}               [protoFile]
  * @property {string}                        ip
  * @property {number}                        port
  * @property {boolean}                       [graphql=true]
