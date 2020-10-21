@@ -80,6 +80,7 @@ const methods = {
 const rpcServer = new RPCServer({
   // port: 50052,    // uncomment to set gRPC port on 50052
   // protoFile: __dirname + '/protos/hello.proto', // set the protobuf file path. (string|string[])
+  // protoFile: __dirname + '/protos', // set the path of protobuf files.
   graphql: true,     // Set true to enable GrpahQL because it's not enabled by default.
   packages: [
     {

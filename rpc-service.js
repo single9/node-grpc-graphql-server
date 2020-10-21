@@ -5,17 +5,22 @@ const grpcToGraphQL = require('./converter/index.js');
 const { recursiveGetPackage, replacePackageName } = require('./tools.js');
 const { RPC_CONFS = process.cwd() + '/conf/rpc' } = process.env;
 
+function readProtofiles(dirpath) {
+  const protosFiles = fs.readdirSync(dirpath);
+  return protosFiles.map(file => dirpath + '/' + file);
+}
+
 class RPCService {
   /**
    * Creates instance of RPC service.
    * @param {RPCServiceConstructorParams}  params
    * @param {protoLoader.Options}          opts 
    */
-  constructor({ grpcServer, protoFile, packages }, opts) {  
-    if (!protoFile) {
-      const protosFiles = fs.readdirSync(RPC_CONFS);
-      const protos = protosFiles.map(file => RPC_CONFS + '/' + file);
-      protoFile = protos;
+  constructor({ grpcServer, protoFile, packages }, opts) {
+    if (protoFile && (!Array.isArray(protoFile) && fs.statSync(protoFile).isDirectory())) {
+      protoFile = readProtofiles(protoFile);
+    } else if (!protoFile) {
+      protoFile = readProtofiles(RPC_CONFS);
     }
 
     this.packageDefinition = protoLoader.loadSync(protoFile, opts || {
