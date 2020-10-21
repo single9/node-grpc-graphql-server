@@ -1,6 +1,8 @@
 gRPC GraphQL Server
 ===================
 
+![npm publish](https://github.com/single9/node-grpc-graphql-server/workflows/Node.js%20Package/badge.svg)
+
 Installation
 -------------
 
@@ -77,6 +79,7 @@ const methods = {
 
 const rpcServer = new RPCServer({
   // port: 50052,    // uncomment to set gRPC port on 50052
+  // protoFile: __dirname + '/protos/hello.proto', // set the protobuf file path. (string|string[])
   graphql: true,     // Set true to enable GrpahQL because it's not enabled by default.
   packages: [
     {
