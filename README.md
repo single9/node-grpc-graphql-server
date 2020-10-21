@@ -1,9 +1,7 @@
 gRPC GraphQL Server
 ===================
 
-![npm](https://github.com/single9/node-grpc-graphql-server/workflows/npm/badge.svg)
-
-![test](https://github.com/single9/node-grpc-graphql-server/workflows/test/badge.svg?branch=master)
+![test](https://github.com/single9/node-grpc-graphql-server/workflows/test/badge.svg?branch=master) ![npm](https://github.com/single9/node-grpc-graphql-server/workflows/npm/badge.svg)
 
 Installation
 -------------
