@@ -2,6 +2,7 @@ const grpc = require('grpc');
 const fs = require('fs');
 const protoLoader = require('@grpc/proto-loader');
 const grpcToGraphQL = require('./converter/index.js');
+const { recursiveGetPackage, replacePackageName } = require('./tools.js');
 const { RPC_CONFS = process.cwd() + '/conf/rpc' } = process.env;
 
 class RPCService {
@@ -41,9 +42,12 @@ class RPCService {
       if (this.grpcServer) {
         this.gqlSchema = grpcToGraphQL(packageDefinition, this.packages);
       }
+
       this.packages.forEach(pack => {
+        const packNames = pack.name.split('.');
+        const packageName = replacePackageName(pack.name);
         const packageObject = 
-          this.packageObject[pack.name] = packageDefinition[pack.name];
+          this.packageObject[packageName] = recursiveGetPackage(packNames, packageDefinition);
 
         // gRPC server mode
         if (this.grpcServer) {
@@ -52,13 +56,13 @@ class RPCService {
           });
         } else {
           pack.services.forEach(service => {
-            if (!this.clients[pack.name]) {
-              this.clients[pack.name] = {};
+            if (!this.clients[packageName]) {
+              this.clients[packageName] = {};
             }
             service.host = service.host || 'localhost';
             service.port = service.port || '50051';
             const host = `${service.host}:${service.port}`;
-            this.clients[pack.name][service.name] = new packageObject[service.name](
+            this.clients[packageName][service.name] = new packageObject[service.name](
               host || 'localhost:50051',
               service.creds || grpc.credentials.createInsecure()
             );

@@ -138,3 +138,19 @@ rpcClient.helloworld.Greeter.sayHelloAgain({ name: 'test again' }, function (err
     console.log('no response')
 });
 ```
+
+Notes
+----------
+
+### Package Name
+
+If your package name is `topname.subname.v1`, it will replaced the `.` to `_`. So your new package 
+name in the server will be `topname_subname_v1`.
+
+#### Example of Client Usage
+
+```js
+rpcClient['topname_subname_v1'].method({ a: 1 }, function (err, response) {
+  // ...
+});
+```

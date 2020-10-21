@@ -1,4 +1,5 @@
 const toGqlTypes = require('./types.js');
+const { recursiveGetPackage, replacePackageName } = require('../tools.js');
 
 let tmplQuery = 
 `type Query {
@@ -117,16 +118,12 @@ function converter(packageObjects, configs) {
     return result;
   }
 
-  packageKeys.forEach(packageKey => {
+  configs.forEach(config => {
+    const packageKey = replacePackageName(config.name);
+    const packageObj = recursiveGetPackage(packageKey.split('_'), packageObjects);
     let gqlServiceType = '';
-    for (let protosType in packageObjects[packageKey]) {
-      const packageObj = packageObjects[packageKey];
-
+    for (let protosType in packageObj) {
       if (!('service' in packageObj[protosType])) continue;
-      let config = configs.find(conf => conf.name === packageKey);
-
-      // ignore undefined service
-      if (!config) continue;
 
       config = config.services.find(service => service.name === protosType);
       config.grpcOnly = config.grpcOnly === undefined && (config.mutate === false && config.query === false);
@@ -191,6 +188,7 @@ function converter(packageObjects, configs) {
       gqlTypes += tmplCustomType.replace('{{TypeName}}', protosType).replace('{{TypeDesc}}', gqlServiceType);
     }
   });
+
   const querySchema = gqlQueryPackages.length > 0 && genGqlQuery(gqlQueryPackages) || '';
   const mutationSchema = gqlMutationPackages.length > 0 && genGqlMutation(gqlMutationPackages) || '';
   return gqlTypes + querySchema + mutationSchema;

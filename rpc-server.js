@@ -2,6 +2,7 @@ const grpc = require('grpc');
 const EventEmitter = require('events').EventEmitter;
 const { ApolloServer, gql } = require('apollo-server-express');
 const RPCService = require('./rpc-service.js');
+const { replacePackageName } = require('./tools.js');
 const allowResolverType = [
   'query',
   'mutate',
@@ -20,8 +21,10 @@ function genResolverType(type, packages) {
       serviceFn[service.name] = () => service.implementation;
     });
 
-    if (!resolverObj[pack.name] && Object.keys(serviceFn).length > 0)
-      resolverObj[pack.name] = function() {
+    const packageName = replacePackageName(pack.name);
+
+    if (!resolverObj[packageName] && Object.keys(serviceFn).length > 0)
+      resolverObj[packageName] = function() {
         return serviceFn;
       };
   });
