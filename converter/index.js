@@ -88,9 +88,6 @@ function converter(packageObjects, configs) {
 
     const messageType = protobufMessage.type;
     const typeField = messageType.field;
-
-    if (!protobufMessage) return '';
-
     const typeName = messageType.name;
     const functions = typeField.map(field => {
       return {
