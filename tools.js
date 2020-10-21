@@ -1,3 +1,8 @@
+/**
+ * Get package data
+ * @param {string} packageNames Package name
+ * @param {object} __package    gRPC package object
+ */
 function recursiveGetPackage(packageNames, __package) {
   const name = packageNames.shift();
   __package = __package[name];
@@ -8,6 +13,10 @@ function recursiveGetPackage(packageNames, __package) {
   }
 }
 
+/**
+ * Replace package name
+ * @param {string} name Name
+ */
 function replacePackageName(name) {
   return name.indexOf('.') !== -1 && name.replace(/\./g, '_') || name;
 }

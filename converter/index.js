@@ -74,8 +74,12 @@ function genGqlType(types) {
   return gqlTypes.join('\n');
 }
 
+/**
+ * Converter
+ * @param {*} packageObjects 
+ * @param {[]} configs 
+ */
 function converter(packageObjects, configs) {
-  const packageKeys = Object.keys(packageObjects);
   let convertedTypes = [];
   let gqlQueryPackages = [];
   let gqlMutationPackages = [];
