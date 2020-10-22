@@ -108,7 +108,7 @@ app.listen(3000, () => {
 ### Client
 
 ```js
-const RPCServer = require('grpc-graphql-server').RPCService;
+const { RPCService } = require('grpc-graphql-server');
 const rpcService = new RPCService({
   packages: [
     {
