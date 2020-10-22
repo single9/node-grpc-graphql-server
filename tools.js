@@ -1,3 +1,5 @@
+const fs = require('fs');
+
 /**
  * Get package data
  * @param {string} packageNames Package name
@@ -21,7 +23,17 @@ function replacePackageName(name) {
   return name.indexOf('.') !== -1 && name.replace(/\./g, '_') || name;
 }
 
+/**
+ * Read Protobuf files from directory
+ * @param {string} dirpath Protobuf file directory
+ */
+function readProtofiles(dirpath) {
+  const protosFiles = fs.readdirSync(dirpath);
+  return protosFiles.map(file => dirpath + '/' + file);
+}
+
 module.exports = {
   recursiveGetPackage,
   replacePackageName,
+  readProtofiles,
 };
