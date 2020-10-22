@@ -1,4 +1,9 @@
 class Controller {
+  /**
+   * Response
+   * @param {*} data Data
+   * @param {function} [callback] Callback function
+   */
   response(data, callback) {
     let err = (data instanceof Error) && data || null;
   
