@@ -1,5 +1,5 @@
 const app = require('express')();
-const { RPCServer } = require('../../index.js');
+const { RPCServer, Controller } = require('../../index.js');
 
 function response (resData, callback) {
   // for gRPC
@@ -13,40 +13,40 @@ function response (resData, callback) {
   });
 }
 
-class Hello {
+class Hello extends Controller {
   SayHello(call, callback) {
-    return response({
+    return this.response({
       message: 'Hello ' + call.request.name
     }, callback);
   }
 
   SayHelloAgain(call, callback) {
-    return response({
+    return this.response({
       message: 'Hello again ' + call.request.name
     }, callback);
   }
 
   SayHelloReturnArray(call, callback) {
-    return response({
+    return this.response({
       message: 'Hello ' + call.request.name + ', I returned an array for you!',
       list: call.request.list,
     }, callback);
   }
 
   SayHelloWithName(call, callback) {
-    return response({
+    return this.response({
       message: 'Hello ' + call.request.name,
     }, callback);
   }
 
   SayIntArray(call, callback) {
-    return response({
+    return this.response({
       nums: [1, 2, 3]
     }, callback);
   }
 
   SayNested(call, callback) {
-    return response({
+    return this.response({
       x: {
         name: 'test x',
         c: {
