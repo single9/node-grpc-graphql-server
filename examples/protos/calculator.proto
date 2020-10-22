@@ -1,0 +1,54 @@
+syntax = "proto3";
+
+package calculator;
+
+service Calculator {
+  rpc add (TwoDoubleRequest) returns (CalculatorResponse) {}
+  rpc minus (TwoDoubleRequest) returns (CalculatorResponse) {}
+  rpc sqrt (OneDoubleRequest) returns (CalculatorResponse) {}
+  rpc multiply (TwoDoubleRequest) returns (CalculatorResponse) {}
+  rpc devide (TwoDoubleRequest) returns (CalculatorResponse) {}
+}
+
+message OneDoubleRequest {
+  double x = 1;
+}
+
+message TwoInt32Request {
+  int32 a = 1;
+  int32 b = 2;
+}
+
+message TwoInt64Request {
+  int64 a = 1;
+  int64 b = 2;
+}
+
+message TwoDoubleRequest {
+  double a = 1;
+  double b = 2;
+}
+
+message TwoFloatRequest {
+  float a = 1;
+  float b = 2;
+}
+
+message TwoUINT32Request {
+  uint32 a = 1;
+  uint32 b = 2;
+}
+
+message TwoUINT64Request {
+  uint64 a = 1;
+  uint64 b = 2;
+}
+
+message BoolRequest {
+  bool a = 1;
+}
+
+// The response message containing the greetings
+message CalculatorResponse {
+  double result = 1;
+}
