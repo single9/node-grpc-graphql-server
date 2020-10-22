@@ -1,6 +1,6 @@
-const RPCServer = require('./rpc-server.js');
-const RPCService = require('./rpc-service.js');
-const Controller = require('./controller.js');
+const RPCServer = require('./libs/rpc-server.js');
+const RPCService = require('./libs/rpc-service.js');
+const Controller = require('./libs/controller.js');
 
 module.exports = {
   RPCServer,

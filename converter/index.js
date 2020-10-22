@@ -1,5 +1,5 @@
 const toGqlTypes = require('./types.js');
-const { recursiveGetPackage, replacePackageName } = require('../tools.js');
+const { recursiveGetPackage, replacePackageName } = require('../libs/tools.js');
 
 let tmplQuery = 
 `type Query {

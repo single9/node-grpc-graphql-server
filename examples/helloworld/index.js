@@ -1,18 +1,6 @@
 const app = require('express')();
 const { RPCServer, Controller } = require('../../index.js');
 
-function response (resData, callback) {
-  // for gRPC
-  if (typeof callback === 'function') {
-    return callback(null, resData);
-  }
-
-  // for grapgql
-  return new Promise((resolve, reject) => {
-    resolve(resData);
-  });
-}
-
 class Hello extends Controller {
   SayHello(call, callback) {
     return this.response({

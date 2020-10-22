@@ -6,7 +6,7 @@ class Controller {
       return callback(err, data);
     }
   
-    // for grapgql
+    // for graphgql
     return new Promise((resolve, reject) => {
       if (err) return reject(err);
       resolve(data);

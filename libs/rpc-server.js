@@ -8,6 +8,11 @@ const allowResolverType = [
   'mutate',
 ];
 
+/**
+ * 
+ * @param {string} type Type
+ * @param {RPCService.RPCServicePackages[]} packages 
+ */
 function genResolverType(type, packages) {
   if (allowResolverType.indexOf(type) < 0) throw new Error(`Invalid type: ${type}`);
 

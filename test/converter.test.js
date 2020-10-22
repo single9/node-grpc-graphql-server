@@ -3,7 +3,7 @@ const grpc = require('grpc');
 const protoLoader = require('@grpc/proto-loader');
 const { gql } = require('apollo-server-express');
 const converter = require('../converter');
-const { readProtofiles } = require('../tools');
+const { readProtofiles } = require('../libs/tools');
 
 describe('Test converter', () => {
   let packageDefinition, packageDefinitionObjects;
