@@ -44,9 +44,12 @@ class Hello extends Controller {
           ],
           snums: 1.1234,
           d: {
-            dname: 'to d',
+            dname: 'to d in',
           }
         },
+        d: {
+          dname: 'to d out',
+        }
       }
     }, callback);
   }
