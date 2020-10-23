@@ -3,6 +3,7 @@ class Controller {
    * Response
    * @param {*} data Data
    * @param {function} [callback] Callback function
+   * @returns {void|Promise<any>}
    */
   response(data, callback) {
     let err = (data instanceof Error) && data || null;
