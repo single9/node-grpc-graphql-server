@@ -129,19 +129,19 @@ function converter(packageObjects, configs) {
     for (let protosType in packageObj) {
       if (!('service' in packageObj[protosType])) continue;
 
-      config = config.services.find(service => service.name === protosType);
-      config.grpcOnly = config.grpcOnly === undefined && (config.mutate === false && config.query === false);
+      serviceConfig = config.services.find(service => service.name === protosType);
+      serviceConfig.grpcOnly = serviceConfig.grpcOnly === undefined ? (config.mutate === false && config.query === false) : serviceConfig.grpcOnly;
       // package type
-      if (config.grpcOnly) return;
+      if (serviceConfig.grpcOnly) return;
 
-      if (config.query !== false) {
+      if (serviceConfig.query !== false) {
         gqlQueryPackages.push({
           name: packageKey,
           responseType: packageKey,
         });
       }
 
-      if (config.mutate !== false) {
+      if (serviceConfig.mutate !== false) {
         gqlMutationPackages.push({
           name: packageKey,
           responseType: packageKey,
