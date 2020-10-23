@@ -83,6 +83,7 @@ function converter(packageObjects, configs) {
   let convertedTypes = [];
   let gqlQueryPackages = [];
   let gqlMutationPackages = [];
+  let gqlPackageRoot = [];
   let gqlTypes = '';
 
   function typeConverter(packageObj, protobufMessageName, isInput = false) {
@@ -126,42 +127,52 @@ function converter(packageObjects, configs) {
     const packageKey = replacePackageName(config.name);
     const packageObj = recursiveGetPackage(packageKey.split('_'), packageObjects);
     let gqlServiceType = '';
+
     for (let protosType in packageObj) {
       if (!('service' in packageObj[protosType])) continue;
 
       serviceConfig = config.services.find(service => service.name === protosType);
-      serviceConfig.grpcOnly = serviceConfig.grpcOnly === undefined ? (config.mutate === false && config.query === false) : serviceConfig.grpcOnly;
-      // package type
+
+      if (!serviceConfig) continue;
+
+      serviceConfig.grpcOnly = 
+        serviceConfig.grpcOnly === undefined ?
+          (serviceConfig.mutate === false && serviceConfig.query === false) : serviceConfig.grpcOnly;
+
       if (serviceConfig.grpcOnly) return;
 
-      if (serviceConfig.query !== false) {
+      const gqlQueryPackagesIndex = gqlQueryPackages.findIndex(pkg => pkg.name === packageKey);
+      if (gqlQueryPackagesIndex === -1 && serviceConfig.query !== false) {
         gqlQueryPackages.push({
           name: packageKey,
           responseType: packageKey,
         });
       }
 
-      if (serviceConfig.mutate !== false) {
+      const gqlMutationPackagesIndex = gqlMutationPackages.findIndex(pkg => pkg.name === packageKey);
+      if (gqlMutationPackagesIndex === -1 && serviceConfig.mutate !== false) {
         gqlMutationPackages.push({
           name: packageKey,
           responseType: packageKey,
         });
       }
 
-      let serviceType = [];
-      // service type
-      gqlTypes += genGqlType([
-        {
+      // package type
+      let gqlPackageRootIndex = gqlPackageRoot.findIndex(pkg => pkg.name === packageKey);
+      if (gqlPackageRootIndex === -1) {
+        gqlPackageRootIndex = (gqlPackageRoot.push({
           name: packageKey,
-          functions: [
-            {
-              name: protosType,
-              responseType: protosType,
-            },
-          ],
-        },
-      ]);
+          functions: [],
+        })) - 1; // retuen the index
+      }
 
+      gqlPackageRoot[gqlPackageRootIndex].functions.push({
+        name: protosType,
+        responseType: protosType,
+      });
+      
+      // service type
+      let serviceType = [];
       const serviceKeys = Object.keys(packageObj[protosType].service);
 
       for (let i = 0; i < serviceKeys.length; i++) {
@@ -193,9 +204,10 @@ function converter(packageObjects, configs) {
     }
   });
 
+  const pkgSchema = gqlPackageRoot.length > 0 && genGqlType(gqlPackageRoot);
   const querySchema = gqlQueryPackages.length > 0 && genGqlQuery(gqlQueryPackages) || '';
   const mutationSchema = gqlMutationPackages.length > 0 && genGqlMutation(gqlMutationPackages) || '';
-  return gqlTypes + querySchema + mutationSchema;
+  return pkgSchema + gqlTypes + querySchema + mutationSchema;
 }
 
 module.exports = converter;
