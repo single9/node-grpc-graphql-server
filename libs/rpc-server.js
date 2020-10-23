@@ -65,7 +65,8 @@ class RPCServer extends EventEmitter {
     this.rpcService = new RPCService({
       protoFile,
       grpcServer: new grpc.Server(),
-      packages
+      packages,
+      graphql,
     });
 
     this.rpcService.grpcServer.bind(ip + ':' + port, creds || grpc.ServerCredentials.createInsecure());

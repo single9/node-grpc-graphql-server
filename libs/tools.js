@@ -1,5 +1,5 @@
 const fs = require('fs');
-
+const path = require('path');
 /**
  * Get package data
  * @param {string} packageNames Package name
@@ -29,7 +29,7 @@ function replacePackageName(name) {
  */
 function readProtofiles(dirpath) {
   const protosFiles = fs.readdirSync(dirpath);
-  return protosFiles.map(file => dirpath + '/' + file);
+  return protosFiles.filter(file => path.extname(file) === '.proto').map(file => dirpath + '/' + file);
 }
 
 module.exports = {
