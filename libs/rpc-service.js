@@ -11,7 +11,7 @@ class RPCService {
    * @param {RPCServiceConstructorParams}  params
    * @param {protoLoader.Options}          opts 
    */
-  constructor({ grpcServer, protoFile, packages }, opts) {
+  constructor({ grpcServer, protoFile, packages, graphql }, opts) {
     if (protoFile && (!Array.isArray(protoFile) && fs.statSync(protoFile).isDirectory())) {
       protoFile = readProtofiles(protoFile);
     } else if (!protoFile) {
@@ -32,6 +32,7 @@ class RPCService {
     this.grpcServer = grpcServer;
     /** @type {Object<string, grpc.GrpcObject|grpc.Client|grpc.ProtobufMessage>} */
     this.packageObject = {};
+    this.graphql = graphql;
 
     if (packages) this.init();
   }
@@ -39,7 +40,7 @@ class RPCService {
   init() {
     if (Array.isArray(this.packages)) {
       const packageDefinition = grpc.loadPackageDefinition(this.packageDefinition);
-      if (this.grpcServer) {
+      if (this.grpcServer && this.graphql === true) {
         this.gqlSchema = grpcToGraphQL(packageDefinition, this.packages);
       }
 
