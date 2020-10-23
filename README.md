@@ -17,6 +17,8 @@ Create a file named `hello.proto` and put it into directory `conf/rpc`.
 
 The location of the file is specified by the environment `RPC_CONFS`. Default is `/conf/rpc`.
 
+Also, you can modify it by pass `protoFile` to the constructor.
+
 ```
 syntax = "proto3";
 
