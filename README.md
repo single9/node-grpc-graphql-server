@@ -108,8 +108,9 @@ app.listen(3000, () => {
 ### Client
 
 ```js
-const { RPCService } = require('grpc-graphql-server');
-const rpcService = new RPCService({
+const { RPCClient } = require('grpc-graphql-server');
+const rpcClient = new RPCClient({
+  // protoFile: __dirname + '/protos', // Set this if your protobuf file doesn't located in the default directory.
   packages: [
     {
       name: 'helloworld',
@@ -123,21 +124,21 @@ const rpcService = new RPCService({
   ]
 });
 
-const rpcClient = rpcService.clients;
-
-rpcClient.helloworld.Greeter.sayHello({ name: 'test' }, function (err, response) {
-  if (response)
-    console.log('Greeting :', response.message);
-  else
-    console.log('no response')
-});
-
-rpcClient.helloworld.Greeter.sayHelloAgain({ name: 'test again' }, function (err, response) {
-  if (response)
+async function main() {
+  // call with callback
+  rpcClient.helloworld.Greeter.SayHelloAgain({ name: 'test again' }, function (err, response) {
+    if (err) return console.log('no response');
     console.log('Greeting again:', response.message);
-  else
-    console.log('no response')
-});
+  });
+
+  // call with promise
+  const sayHelloResponse = await rpcClient.helloworld.Greeter.SayHello({ name: 'test' });
+  const SayNestedResponse = await rpcClient.helloworld.Greeter.SayNested({});
+  console.log('Greeting', sayHelloResponse.message);
+  console.log(SayNestedResponse);
+}
+
+main();
 ```
 
 Notes
@@ -154,4 +155,6 @@ name in the server will be `topname_subname_v1`.
 rpcClient['topname_subname_v1'].method({ a: 1 }, function (err, response) {
   // ...
 });
+
+await rpcClient['topname_subname_v1'].method({ a: 1 };
 ```

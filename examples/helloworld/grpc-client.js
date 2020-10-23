@@ -1,5 +1,5 @@
-const { RPCService } = require('../../index.js');
-const rpcService = new RPCService({
+const { RPCClient } = require('../../index.js');
+const rpcClient = new RPCClient({
   protoFile: __dirname + '/../protos/hello.proto',
   packages: [
     {
@@ -13,25 +13,18 @@ const rpcService = new RPCService({
   ]
 });
 
-const rpcClient = rpcService.clients;
-
-rpcClient.helloworld.Greeter.sayHello({ name: 'test' }, function (err, response) {
-  if (response)
-    console.log('Greeting :', response.message);
-  else
-    console.log('no response');
-});
-
-rpcClient.helloworld.Greeter.sayHelloAgain({ name: 'test again' }, function (err, response) {
-  if (response)
+async function main() {
+  // call with callback
+  rpcClient.helloworld.Greeter.SayHelloAgain({ name: 'test again' }, function (err, response) {
+    if (err) return console.log('no response');
     console.log('Greeting again:', response.message);
-  else
-    console.log('no response');
-});
+  });
 
-rpcClient.helloworld.Greeter.SayNested({}, function (err, response) {
-  if (response)
-    console.log('SayNested:', response.x);
-  else
-    console.log('no response');
-});
+  // call with promise
+  const sayHelloResponse = await rpcClient.helloworld.Greeter.SayHello({ name: 'test' });
+  const SayNestedResponse = await rpcClient.helloworld.Greeter.SayNested({});
+  console.log('Greeting', sayHelloResponse.message);
+  console.log(SayNestedResponse);
+}
+
+main();

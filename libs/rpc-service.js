@@ -62,10 +62,28 @@ class RPCService {
             service.host = service.host || 'localhost';
             service.port = service.port || '50051';
             const host = `${service.host}:${service.port}`;
-            this.clients[packageName][service.name] = new packageObject[service.name](
+            const serviceFunctionsKey = Object.keys(packageObject[service.name].service);
+            const serviceClient = new packageObject[service.name](
               host || 'localhost:50051',
               service.creds || grpc.credentials.createInsecure()
             );
+            const newFunctions = Object.assign({}, serviceClient);
+            serviceFunctionsKey.forEach((fnName) => {
+              // Promise the functions
+              newFunctions[fnName] = (...args) => {
+                if (args.length === 1) {
+                  return new Promise((resolve, reject) => {
+                    serviceClient[fnName](args[0], (err, response) => {
+                      if (err) return reject(err);
+                      resolve(response);
+                    });
+                  });
+                } else {
+                  return serviceClient[fnName](...args);
+                }
+              };
+            });
+            this.clients[packageName][service.name] = newFunctions;
           });
         }
       });
@@ -118,8 +136,11 @@ module.exports = RPCService;
  */
 
 /**
- * gRPC Client Service Functions Call
- * @typedef {function(CallFunctionReq, CallFunctionRes)} ClientCallFunction
+ * gRPC Client Service Function Call.
+ * @callback ClientCallFunction
+ * @param  {CallFunctionReq}      req
+ * @param  {CallFunctionCallback} [callback]
+ * @returns {Promise<any>|void} response
  */
 
 /**
@@ -129,7 +150,7 @@ module.exports = RPCService;
 
 /**
  * Function response
- * @callback CallFunctionRes
+ * @callback CallFunctionCallback
  * @param {Error} err               Error Message
  * @param {any}   responseMessage   Response Message
  */
