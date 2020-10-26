@@ -154,9 +154,9 @@ name in the server will be `topname_subname_v1`.
 #### Example of Client Usage
 
 ```js
-rpcClient['topname_subname_v1'].method({ a: 1 }, function (err, response) {
+rpcClient['topname_subname_v1'].<service_name>.method({ a: 1 }, function (err, response) {
   // ...
 });
 
-await rpcClient['topname_subname_v1'].method({ a: 1 };
+await rpcClient['topname_subname_v1'].<service_name>.method({ a: 1 });
 ```
