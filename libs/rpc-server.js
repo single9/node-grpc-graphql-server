@@ -2,56 +2,7 @@ const grpc = require('grpc');
 const EventEmitter = require('events').EventEmitter;
 const { ApolloServer, gql } = require('apollo-server-express');
 const RPCService = require('./rpc-service.js');
-const { replacePackageName } = require('./tools.js');
-const allowResolverType = [
-  'query',
-  'mutate',
-];
-
-/**
- * 
- * @param {string} type Type
- * @param {RPCService.RPCServicePackages[]} packages 
- */
-function genResolverType(type, packages) {
-  if (allowResolverType.indexOf(type) < 0) throw new Error(`Invalid type: ${type}`);
-
-  let resolverObj = {};
-
-  packages.forEach(pack => {
-    let serviceFn = {};
-
-    pack.services.forEach(service => {
-      if (service[type] === false || service.grpcOnly) return;
-      serviceFn[service.name] = () => service.implementation;
-    });
-
-    const packageName = replacePackageName(pack.name);
-
-    if (!resolverObj[packageName] && Object.keys(serviceFn).length > 0)
-      resolverObj[packageName] = function() {
-        return serviceFn;
-      };
-  });
-
-  return resolverObj;
-}
-
-function genResolvers(packages) {
-  let resolvers = {};
-  let Query = genResolverType('query', packages);
-  let Mutation = genResolverType('mutate', packages);
-
-  if (Object.keys(Query).length > 0) {
-    resolvers.Query = Query;
-  }
-
-  if (Object.keys(Mutation).length > 0) {
-    resolvers.Mutation = Mutation;
-  }
-
-  return resolvers;
-}
+const { genResolvers } = require('./tools.js');
 
 class RPCServer extends EventEmitter {
   /**
