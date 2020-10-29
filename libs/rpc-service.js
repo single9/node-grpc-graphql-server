@@ -72,7 +72,12 @@ class RPCService {
             serviceFunctionsKey.forEach((fnName) => {
               // Promise the functions
               newFunctions[fnName] = (...args) => {
-                if (args.length === 1) {
+                // ensure passing an object to function. Because gRPC need.
+                if (args.length === 0) {
+                  args[0] = {};
+                }
+
+                if (args.length === 1 && typeof args[0] !== 'function') {
                   return new Promise((resolve, reject) => {
                     serviceClient[fnName](args[0], (err, response) => {
                       if (err) return reject(err);
