@@ -139,7 +139,7 @@ function converter(packageObjects, configs) {
         serviceConfig.grpcOnly === undefined ?
           (serviceConfig.mutate === false && serviceConfig.query === false) : serviceConfig.grpcOnly;
 
-      if (serviceConfig.grpcOnly) return;
+      if (serviceConfig.grpcOnly) continue;
 
       const gqlQueryPackagesIndex = gqlQueryPackages.findIndex(pkg => pkg.name === packageKey);
       if (gqlQueryPackagesIndex === -1 && serviceConfig.query !== false) {
