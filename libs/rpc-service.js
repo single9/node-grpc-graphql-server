@@ -77,7 +77,7 @@ class RPCService {
                   args[0] = {};
                 }
 
-                if (args.length === 1) {
+                if (args.length === 1 && typeof args[0] !== 'function') {
                   return new Promise((resolve, reject) => {
                     serviceClient[fnName](args[0], (err, response) => {
                       if (err) return reject(err);
