@@ -29,7 +29,14 @@ class RPCServer extends EventEmitter {
     if (graphql !== true) return this;
     // Construct a schema, using GraphQL schema language from
     // protobuf to GraphQL converter
-    const typeDefs = gql`${this.rpcService.gqlSchema}`;
+    const gqlSchema = this.rpcService.gqlSchema;
+
+    if (!gqlSchema) {
+      console.warn('GraphQL Server start failed due to missing schema.');
+      return this;
+    }
+
+    const typeDefs = gql`${gqlSchema}`;
     // Provide resolver functions for your schema fields
     // This section will automatically generate functions and resolvers
     let resolvers = genResolvers(packages);

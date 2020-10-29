@@ -139,7 +139,7 @@ function converter(packageObjects, configs) {
         serviceConfig.grpcOnly === undefined ?
           (serviceConfig.mutate === false && serviceConfig.query === false) : serviceConfig.grpcOnly;
 
-      if (serviceConfig.grpcOnly) return;
+      if (serviceConfig.grpcOnly) continue;
 
       const gqlQueryPackagesIndex = gqlQueryPackages.findIndex(pkg => pkg.name === packageKey);
       if (gqlQueryPackagesIndex === -1 && serviceConfig.query !== false) {
@@ -204,10 +204,11 @@ function converter(packageObjects, configs) {
     }
   });
 
-  const pkgSchema = gqlPackageRoot.length > 0 && genGqlType(gqlPackageRoot);
+  const pkgSchema = gqlPackageRoot.length > 0 && genGqlType(gqlPackageRoot) || '';
   const querySchema = gqlQueryPackages.length > 0 && genGqlQuery(gqlQueryPackages) || '';
   const mutationSchema = gqlMutationPackages.length > 0 && genGqlMutation(gqlMutationPackages) || '';
-  return pkgSchema + gqlTypes + querySchema + mutationSchema;
+  const combinedSchema = pkgSchema + gqlTypes + querySchema + mutationSchema;
+  return combinedSchema.length > 0 && combinedSchema || undefined;
 }
 
 module.exports = converter;
