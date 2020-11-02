@@ -123,6 +123,23 @@ function converter(packageObjects, configs) {
     return result;
   }
 
+  function pushToPackageRoot(name, protosType) {
+    // package type
+    let gqlPackageRootIndex = gqlPackageRoot.findIndex(pkg => pkg.name === name);
+    if (gqlPackageRootIndex === -1) {
+      gqlPackageRootIndex = (gqlPackageRoot.push({
+        name: name,
+        functions: [],
+      })) - 1; // retuen the index
+    }
+
+    // protosType = grpc serviceName
+    gqlPackageRoot[gqlPackageRootIndex].functions.push({
+      name: protosType,
+      responseType: protosType,
+    });
+  }
+
   configs.forEach(config => {
     const packageKey = replacePackageName(config.name);
     const packageObj = recursiveGetPackage(packageKey.split('_'), packageObjects);
@@ -141,11 +158,14 @@ function converter(packageObjects, configs) {
 
       if (serviceConfig.grpcOnly) continue;
 
+      /**
+       * This section will generate `packageKey_query` and `packageKey_mutate` type
+       */
       const gqlQueryPackagesIndex = gqlQueryPackages.findIndex(pkg => pkg.name === packageKey);
       if (gqlQueryPackagesIndex === -1 && serviceConfig.query !== false) {
         gqlQueryPackages.push({
           name: packageKey,
-          responseType: packageKey,
+          responseType: packageKey + '_query',
         });
       }
 
@@ -153,23 +173,15 @@ function converter(packageObjects, configs) {
       if (gqlMutationPackagesIndex === -1 && serviceConfig.mutate !== false) {
         gqlMutationPackages.push({
           name: packageKey,
-          responseType: packageKey,
+          responseType: packageKey + '_mutate',
         });
       }
 
-      // package type
-      let gqlPackageRootIndex = gqlPackageRoot.findIndex(pkg => pkg.name === packageKey);
-      if (gqlPackageRootIndex === -1) {
-        gqlPackageRootIndex = (gqlPackageRoot.push({
-          name: packageKey,
-          functions: [],
-        })) - 1; // retuen the index
-      }
+      if (serviceConfig.query !== false)
+        pushToPackageRoot(packageKey + '_query', protosType);
 
-      gqlPackageRoot[gqlPackageRootIndex].functions.push({
-        name: protosType,
-        responseType: protosType,
-      });
+      if (serviceConfig.mutate !== false)
+        pushToPackageRoot(packageKey + '_mutate', protosType);
       
       // service type
       let serviceType = [];

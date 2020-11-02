@@ -2,16 +2,19 @@ syntax = "proto3";
 
 package calculator;
 
-service Calculator {
+service Simple {
   rpc add (TwoDoubleRequest) returns (CalculatorResponse) {}
   rpc minus (TwoDoubleRequest) returns (CalculatorResponse) {}
-  rpc sqrt (OneDoubleRequest) returns (CalculatorResponse) {}
   rpc multiply (TwoDoubleRequest) returns (CalculatorResponse) {}
   rpc devide (TwoDoubleRequest) returns (CalculatorResponse) {}
 }
 
+service Complex {
+  rpc sqrt (OneDoubleRequest) returns (CalculatorResponse) {}
+}
+
 message OneDoubleRequest {
-  double x = 1;
+  required double x = 1;
 }
 
 message TwoInt32Request {
@@ -50,5 +53,5 @@ message BoolRequest {
 
 // The response message containing the greetings
 message CalculatorResponse {
-  double result = 1;
+  required double result = 1;
 }
