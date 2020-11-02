@@ -5,14 +5,14 @@ class Calculator extends Controller {
   add(call, callback) {
     let res = {
       result: call.request.a + call.request.b
-    }
+    };
     return this.response(res, callback);
   }
 
   minus(call, callback) {
     let res = {
       result: call.request.a - call.request.b
-    }
+    };
     return this.response(res, callback);
   }
 
