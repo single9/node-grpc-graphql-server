@@ -19,6 +19,8 @@ The location of the file is specified by the environment `RPC_CONFS`. Default is
 
 Also, you can modify it by pass `protoFile` to the constructor.
 
+See `examples/helloworld`.
+
 ```
 syntax = "proto3";
 
@@ -109,6 +111,8 @@ app.listen(3000, () => {
 
 ### Client
 
+See `examples/helloworld/grpc-client.js`.
+
 ```js
 const { RPCClient } = require('grpc-graphql-server');
 const rpcClient = new RPCClient({
@@ -141,6 +145,53 @@ async function main() {
 }
 
 main();
+```
+
+### GraphQL
+
+    npm install graphql-request graphql
+
+#### Usage
+
+```js
+const { request, gql } = require('graphql-request');
+ 
+const query = gql`
+  {
+    <package_name> {
+      <service_name> {
+        <function_name>(request: <request_parameters>) {
+          <response_data_type>
+        }
+      }
+    }
+  }
+`;
+ 
+request('http://localhost:3000/graphql', query)
+  .then((data) => console.log(data));
+```
+
+#### Example
+
+See `examples/helloworld/graphql-client.js`.
+
+```js
+const { request, gql } = require('graphql-request');
+const query = gql`
+  {
+    helloworld {
+      Greeter {
+        SayHello(request: { name: "Duye" }) {
+          message
+        }
+      }
+    }
+  }
+`;
+ 
+request('http://localhost:3000/graphql', query)
+  .then((data) => console.log(JSON.stringify(data)));
 ```
 
 Notes
