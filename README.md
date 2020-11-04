@@ -166,7 +166,7 @@ main();
 packages can also be like this:
 
 ```js
-const rpcServer = new RPCServer({
+const rpcServer = new RPCClient({
   ...
   packages: {
     helloworld: { // package name
