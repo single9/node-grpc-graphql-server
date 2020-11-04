@@ -18,6 +18,7 @@ class RPCService {
       protoFile = readProtofiles(RPC_CONFS);
     }
 
+    // load protobuf
     this.packageDefinition = protoLoader.loadSync(protoFile, opts || {
       keepCase: true,
       longs: String,
@@ -37,7 +38,11 @@ class RPCService {
     if (packages) this.init();
   }
 
+  /**
+   * Initialize
+   */
   init() {
+    // map object to array
     if (Array.isArray(this.packages) === false && (typeof this.packages === 'object')) {
       let newPackages = [];
       let packageKeys = Object.keys(this.packages);
@@ -56,7 +61,10 @@ class RPCService {
       });
       this.packages = newPackages;
     }
+
+    // main process
     if (Array.isArray(this.packages)) {
+      // load definitions from packages
       const packageDefinition = grpc.loadPackageDefinition(this.packageDefinition);
       if (this.grpcServer && this.graphql === true) {
         this.gqlSchema = grpcToGraphQL(packageDefinition, this.packages);
@@ -68,12 +76,13 @@ class RPCService {
         const packageObject = 
           this.packageObject[packageName] = recursiveGetPackage(packNames, packageDefinition);
 
-        // gRPC server mode
         if (this.grpcServer) {
+          // gRPC server mode
           pack.services.forEach(service => {
             this.grpcServer.addService(packageObject[service.name].service, service.implementation);
           });
         } else {
+          // gRPC client mode
           pack.services.forEach(service => {
             if (!this.clients[packageName]) {
               this.clients[packageName] = {};
@@ -96,6 +105,7 @@ class RPCService {
                 }
 
                 if (args.length === 1 && typeof args[0] !== 'function') {
+                  // wrap with promise if callback is unset
                   return new Promise((resolve, reject) => {
                     serviceClient[fnName](args[0], (err, response) => {
                       if (err) return reject(err);
@@ -107,6 +117,7 @@ class RPCService {
                 }
               };
             });
+            // map functions
             this.clients[packageName][service.name] = newFunctions;
           });
         }
