@@ -39,7 +39,7 @@ class RPCServer extends EventEmitter {
     const typeDefs = gql`${gqlSchema}`;
     // Provide resolver functions for your schema fields
     // This section will automatically generate functions and resolvers
-    let resolvers = genResolvers(packages);
+    let resolvers = genResolvers(this.rpcService.packages);
     this.gqlServer = new ApolloServer({ typeDefs, resolvers });
 
     console.log('GraphQL Server is enabled.');

@@ -109,6 +109,22 @@ app.listen(3000, () => {
 });
 ```
 
+packages can also be like this:
+
+```js
+const rpcServer = new RPCServer({
+  ...
+  packages: {
+    helloworld: { // package name
+      Greeter: {  // service name
+        implementation: methods.hello, // implementation
+      },
+    },
+  },
+  ...
+});
+```
+
 ### Client
 
 See `examples/helloworld/grpc-client.js`.
@@ -145,6 +161,22 @@ async function main() {
 }
 
 main();
+```
+
+packages can also be like this:
+
+```js
+const rpcServer = new RPCServer({
+  ...
+  packages: {
+    helloworld: { // package name
+      Greeter: {  // service name
+        //port: 50051, // gRPC service port number
+      },
+    },
+  },
+  ...
+});
 ```
 
 ### GraphQL

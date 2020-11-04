@@ -38,6 +38,24 @@ class RPCService {
   }
 
   init() {
+    if (Array.isArray(this.packages) === false && (typeof this.packages === 'object')) {
+      let newPackages = [];
+      let packageKeys = Object.keys(this.packages);
+      packageKeys.forEach(pack => {
+        let newServices = [];
+        const servicesKeys = Object.keys(this.packages[pack]);
+        servicesKeys.forEach(service => {
+          let serviceObj = Object.assign({}, this.packages[pack][service]);
+          serviceObj.name = service;
+          newServices.push(serviceObj);
+        });
+        newPackages.push({
+          name: pack,
+          services: newServices,
+        });
+      });
+      this.packages = newPackages;
+    }
     if (Array.isArray(this.packages)) {
       const packageDefinition = grpc.loadPackageDefinition(this.packageDefinition);
       if (this.grpcServer && this.graphql === true) {
