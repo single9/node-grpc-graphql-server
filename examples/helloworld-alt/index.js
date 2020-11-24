@@ -11,8 +11,8 @@ const rpcServer = new RPCServer({
   port: 50052,    // set gRPC port on 50052
   graphql: {
     enable: true,
-    // schemaPath: path.join(__dirname, './schema'),
-    // controllerPath: path.join(__dirname, './controllers/graphql'),
+    schemaPath: path.join(__dirname, './schema'),
+    resolverPath: path.join(__dirname, './controllers/graphql'),
     // auto: false,
   },
   protoFile:  path.join(__dirname, '../protos/hello.proto'),

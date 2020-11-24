@@ -26,9 +26,11 @@ class RPCServer extends EventEmitter {
     console.log('gRPC Server started %s:%d', ip, port);
 
     // GraphQL server is not running by default. Set `graphql` to enabled.
-    if (!graphql || !graphql.enable) return this;
+    if (((typeof graphql === 'boolean') && graphql !== true) || (graphql !== true && graphql.enable !== true)) {
+      return this;
+    }
     
-    const { schemaPath, controllerPath } = graphql;
+    const { schemaPath, resolverPath } = graphql;
 
     const rootTypeDefs = `
       type Query{
@@ -43,9 +45,9 @@ class RPCServer extends EventEmitter {
     let registerTypes = [ rootTypeDefs ];
     let registerResolvers = [];
     
-    if (schemaPath && controllerPath) {
+    if (schemaPath && resolverPath) {
       const schemas = readDir(schemaPath, '.js');
-      const controllers = readDir(controllerPath, '.js');
+      const controllers = readDir(resolverPath, '.js');
       schemas.map( x => registerTypes.push(require(x)));
       controllers.map( x => registerResolvers.push(require(x)));
     }
@@ -83,7 +85,14 @@ module.exports = RPCServer;
  * @property {string|string[]}               [protoFile]
  * @property {string}                        ip
  * @property {number}                        port
- * @property {boolean}                       [graphql=true]
+ * @property {GraphqlProperty|boolean}       [graphql]
  * @property {grpc.ServerCredentials}        [creds]
  * @property {RPCService.RPCServicePackages} packages
+ */
+
+/**
+ * @typedef   {object} GraphqlProperty
+ * @property  {boolean}   [enable=false]    Set to true to enable GraphQL
+ * @property  {string}    [schemaPath]      Path of yours GraphQL schema (required if you want to create yours GraphQL)
+ * @property  {string}    [resolverPath]    Path of yours GraphQL resolver (required if you want to create yours GraphQL)
  */
