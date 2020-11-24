@@ -66,7 +66,7 @@ class RPCService {
     if (Array.isArray(this.packages)) {
       // load definitions from packages
       const packageDefinition = grpc.loadPackageDefinition(this.packageDefinition);
-      if (this.grpcServer && this.graphql === true) {
+      if (this.grpcServer && this.graphql && this.graphql.enable === true) {
         this.gqlSchema = grpcToGraphQL(packageDefinition, this.packages);
       }
 

@@ -1,8 +1,8 @@
 const grpc = require('grpc');
 const EventEmitter = require('events').EventEmitter;
-const { ApolloServer, gql } = require('apollo-server-express');
+const { ApolloServer, makeExecutableSchema, gql } = require('apollo-server-express');
 const RPCService = require('./rpc-service.js');
-const { genResolvers } = require('./tools.js');
+const { genResolvers, readDir } = require('./tools.js');
 
 class RPCServer extends EventEmitter {
   /**
@@ -26,21 +26,51 @@ class RPCServer extends EventEmitter {
     console.log('gRPC Server started %s:%d', ip, port);
 
     // GraphQL server is not running by default. Set `graphql` to enabled.
-    if (graphql !== true) return this;
-    // Construct a schema, using GraphQL schema language from
-    // protobuf to GraphQL converter
-    const gqlSchema = this.rpcService.gqlSchema;
+    if (!graphql || !graphql.enable) return this;
+    
+    const { schemaPath, controllerPath } = graphql;
 
-    if (!gqlSchema) {
-      console.warn('GraphQL Server start failed due to missing schema.');
-      return this;
+    const rootTypeDefs = `
+      type Query{
+        _: String
+      }
+      type Mutation {
+        _: String
+      }
+    `;
+
+    let auto = (graphql.auto !== undefined) ? graphql.auto: true;
+    let registerTypes = [ rootTypeDefs ];
+    let registerResolvers = [];
+    
+    if (schemaPath && controllerPath) {
+      const schemas = readDir(schemaPath, '.js');
+      const controllers = readDir(controllerPath, '.js');
+      schemas.map( x => registerTypes.push(require(x)));
+      controllers.map( x => registerResolvers.push(require(x)));
     }
 
-    const typeDefs = gql`${gqlSchema}`;
-    // Provide resolver functions for your schema fields
-    // This section will automatically generate functions and resolvers
-    let resolvers = genResolvers(this.rpcService.packages);
-    this.gqlServer = new ApolloServer({ typeDefs, resolvers });
+    if (auto) {
+      // Construct a schema, using GraphQL schema language from
+      // protobuf to GraphQL converter
+      const gqlSchema = this.rpcService.gqlSchema;
+      if (!gqlSchema) {
+        console.warn('GraphQL Server start failed due to missing schema.');
+        return this;
+      }
+      // Provide resolver functions for your schema fields
+      // This section will automatically generate functions and resolvers
+      registerTypes.push(gql`${gqlSchema}`);
+      registerResolvers.push(genResolvers(this.rpcService.packages));
+    }
+
+    const schema = makeExecutableSchema({
+      typeDefs: registerTypes,
+      resolvers: registerResolvers,
+      logger: { log: e => console.log(e) }
+    });
+
+    this.gqlServer = new ApolloServer({schema});
 
     console.log('GraphQL Server is enabled.');
   }

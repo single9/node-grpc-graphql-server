@@ -2,12 +2,12 @@ const toGqlTypes = require('./types.js');
 const { recursiveGetPackage, replacePackageName } = require('../libs/tools.js');
 
 let tmplQuery = 
-`type Query {
+`extend type Query {
   {{FnDesc}}
 }\n`;
 
 let tmplMutation = 
-`type Mutation {
+`extend type Mutation {
   {{FnDesc}}
 }`;
 
