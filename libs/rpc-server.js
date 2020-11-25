@@ -9,7 +9,7 @@ class RPCServer extends EventEmitter {
    * Creates an instance of RPC Server
    * @param {ServerConstructorParams} param0 
    */
-  constructor({protoFile, ip = '0.0.0.0', port = 50051, creds, graphql, packages}) {
+  constructor({protoFile, ip = '0.0.0.0', port = 50051, creds, graphql, packages, logger}) {
     super();
 
     this.gqlServer = undefined;
@@ -19,8 +19,6 @@ class RPCServer extends EventEmitter {
       packages,
       graphql,
     });
-
-    this.options = {};
 
     this.rpcService.grpcServer.bind(ip + ':' + port, creds || grpc.ServerCredentials.createInsecure());
     this.rpcService.grpcServer.start();
@@ -68,19 +66,18 @@ class RPCServer extends EventEmitter {
       registerResolvers.push(genResolvers(this.rpcService.packages));
     }
 
-    
-
-    this.options.schema = makeExecutableSchema({
+    this.gqlConfigs = { logger };
+    this.gqlConfigs.schema = makeExecutableSchema({
       typeDefs: registerTypes,
       resolvers: registerResolvers,
-      logger: { log: e => console.log(e) }
+      logger,
     });
 
     if (context) {
-      this.options.context = context;
+      this.gqlConfigs.context = context;
     }
 
-    this.gqlServer = new ApolloServer(this.options);
+    this.gqlServer = new ApolloServer(this.gqlConfigs);
 
     console.log('GraphQL Server is enabled.');
   }
@@ -96,6 +93,7 @@ module.exports = RPCServer;
  * @property {GraphqlProperty|boolean}       [graphql]
  * @property {grpc.ServerCredentials}        [creds]
  * @property {RPCService.RPCServicePackages} packages
+ * @property {*}                             logger         Logger for GraphQL server
  */
 
 /**
