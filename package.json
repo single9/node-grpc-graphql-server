@@ -1,6 +1,6 @@
 {
   "name": "grpc-graphql-server",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Generates a GraphQL schema from gRPC Protobuf and creates the server",
   "main": "index.js",
   "scripts": {
