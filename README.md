@@ -226,6 +226,56 @@ request('http://localhost:3000/graphql', query)
   .then((data) => console.log(JSON.stringify(data)));
 ```
 
+### Manually GraphQL Schema and Resolver
+
+This package generates GraphQL schema and resolver from gRPC protocol buffers by default. Now you can 
+specify your own GraphQL schema and resolver to the server.
+
+Thanks to [w4567892015](https://github.com/w4567892015) with [PR#4](https://github.com/single9/node-grpc-graphql-server/pull/4).
+
+#### Usage
+
+```js
+const rpcServer = new RPCServer({
+  ...
+  graphql: {
+    enable: true,   // Set true to enable GrpahQL because it's not enabled by default.
+    // auto: false, // Set false to disable default GraphQL generator if you don't need.
+    schemaPath: 'path/to/your/graphql/schema.js',
+    resolverPath: 'path/to/your/graphql/resolver.js',
+  },
+  ...
+});
+```
+#### Example
+
+**Server**
+
+See `examples/helloworld-alt`.
+
+```js
+const rpcServer = new RPCServer({
+  protoFile: __dirname + '/protos/hello.proto', // set the protobuf file path. (string|string[])
+  graphql: {
+    enable: true,   // Set true to enable GrpahQL because it's not enabled by default.
+    schemaPath: path.join(__dirname, './schema'),
+    resolverPath: path.join(__dirname, './controllers/graphql'),
+  },
+  packages: [
+    {
+      name: 'helloworld',
+      services: [
+        {
+          name: 'Greeter',
+          implementation: methods.hello,
+          mutate: false,
+        }
+      ]
+    },
+  ]
+});
+```
+
 Notes
 ----------
 
