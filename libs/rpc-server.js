@@ -20,6 +20,8 @@ class RPCServer extends EventEmitter {
       graphql,
     });
 
+    this.options = {};
+
     this.rpcService.grpcServer.bind(ip + ':' + port, creds || grpc.ServerCredentials.createInsecure());
     this.rpcService.grpcServer.start();
 
@@ -30,7 +32,7 @@ class RPCServer extends EventEmitter {
       return this;
     }
     
-    const { schemaPath, resolverPath } = graphql;
+    const { schemaPath, resolverPath, context } = graphql;
 
     const rootTypeDefs = `
       type Query{
@@ -66,13 +68,19 @@ class RPCServer extends EventEmitter {
       registerResolvers.push(genResolvers(this.rpcService.packages));
     }
 
-    const schema = makeExecutableSchema({
+    
+
+    this.options.schema = makeExecutableSchema({
       typeDefs: registerTypes,
       resolvers: registerResolvers,
       logger: { log: e => console.log(e) }
     });
 
-    this.gqlServer = new ApolloServer({schema});
+    if (context) {
+      this.options.context = context;
+    }
+
+    this.gqlServer = new ApolloServer(this.options);
 
     console.log('GraphQL Server is enabled.');
   }

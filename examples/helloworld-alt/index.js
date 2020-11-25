@@ -13,6 +13,9 @@ const rpcServer = new RPCServer({
     enable: true,
     schemaPath: path.join(__dirname, './schema'),
     resolverPath: path.join(__dirname, './controllers/graphql'),
+    context: async ({ req }) => {
+      console.log(req);
+    }
     // auto: false,
   },
   protoFile:  path.join(__dirname, '../protos/hello.proto'),
