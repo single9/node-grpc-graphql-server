@@ -247,7 +247,27 @@ const rpcServer = new RPCServer({
   ...
 });
 ```
-#### Example
+
+#### Context
+
+We use [ApolloServer](https://www.apollographql.com/) to build our GraphQL server. It provides `context` argument for passing things
+that any resolver might need, like authentication, databases, etc. 
+
+Ref: ([The context argument - ApolloServer](https://www.apollographql.com/docs/apollo-server/data/resolvers/#the-context-argument))
+
+```js
+const rpcServer = new RPCServer({
+  ...
+  graphql: {
+    ...
+    context: async ({ req }) => {
+      console.log(req);
+    }
+  },
+  ...
+});
+```
+##### Example
 
 **Server**
 
