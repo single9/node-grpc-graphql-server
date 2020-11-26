@@ -24,8 +24,7 @@ let tmplCustomInput =
 /**
  * Generate function description schema with GraphQL language
  *
- * @param {*} functions
- * @returns
+ * @param {GqlFunctionDescribe[]} functions
  */
 function genGqlFunctionDescribe(functions) {
   let fnDesc = [];
@@ -42,7 +41,7 @@ function genGqlFunctionDescribe(functions) {
 
 /**
  * Generate the query schema with GraphQL language
- * @param {[]} functions 
+ * @param {GqlFunctionDescribe[]} functions 
  */
 function genGqlQuery(functions) {
   let fnDesc = genGqlFunctionDescribe(functions);
@@ -51,13 +50,16 @@ function genGqlQuery(functions) {
 
 /**
  * Generate the mutation schema with GraphQL language
- * @param {[]} functions 
+ * @param {GqlFunctionDescribe[]} functions 
  */
 function genGqlMutation(functions) {
   let fnDesc = genGqlFunctionDescribe(functions);
   return tmplMutation.replace('{{FnDesc}}', fnDesc);
 }
 
+/**
+ * @param {GenGqlTypeParams[]} types 
+ */
 function genGqlType(types) {
   let gqlTypes = [];
 
@@ -224,3 +226,23 @@ function converter(packageObjects, configs) {
 }
 
 module.exports = converter;
+
+/**
+ * @typedef {object} GenGqlTypeParams
+ * @property {string} name
+ * @property {GqlFunctionDescribe[]} functions
+ */
+
+/**
+ * @typedef {object} GqlFunctionDescribe
+ * @property {string} name
+ * @property {string} responseType
+ * @property {RequestParams[]} requestParams
+ */
+
+/**
+ * @typedef {object} RequestParams
+ * @property {string}  name
+ * @property {string}  type
+ * @property {boolean} required
+ */
