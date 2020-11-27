@@ -26,7 +26,7 @@ class RPCServer extends EventEmitter {
     console.log('gRPC Server started %s:%d', ip, port);
 
     // GraphQL server is not running by default. Set `graphql` to enabled.
-    if (((typeof graphql === 'boolean') && graphql !== true) || (graphql !== true && graphql.enable !== true)) {
+    if ((graphql === undefined) || ((typeof graphql === 'boolean') && graphql !== true) || (typeof graphql === 'object' && graphql.enable !== true)) {
       return this;
     }
     

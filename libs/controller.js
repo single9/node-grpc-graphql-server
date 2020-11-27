@@ -9,6 +9,8 @@ class Controller {
     let err = (data instanceof Error) && data || null;
   
     if (typeof callback === 'function') {
+      // stringify error message because gRPC callback only contains error message.
+      err = err && new Error(JSON.stringify(err, Object.getOwnPropertyNames(err)));
       return callback(err, data);
     }
   
