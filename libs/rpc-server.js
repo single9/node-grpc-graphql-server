@@ -30,7 +30,7 @@ class RPCServer extends EventEmitter {
       return this;
     }
     
-    const { schemaPath, resolverPath, context } = graphql;
+    const { schemaPath, resolverPath, context, formatError } = graphql;
 
     const rootTypeDefs = `
       type Query{
@@ -66,16 +66,12 @@ class RPCServer extends EventEmitter {
       registerResolvers.push(genResolvers(this.rpcService.packages));
     }
 
-    this.gqlConfigs = { logger };
+    this.gqlConfigs = { logger, context, formatError };
     this.gqlConfigs.schema = makeExecutableSchema({
       typeDefs: registerTypes,
       resolvers: registerResolvers,
       logger,
     });
-
-    if (context) {
-      this.gqlConfigs.context = context;
-    }
 
     this.gqlServer = new ApolloServer(this.gqlConfigs);
 
@@ -101,4 +97,6 @@ module.exports = RPCServer;
  * @property  {boolean}   [enable=false]    Set to true to enable GraphQL
  * @property  {string}    [schemaPath]      Path of yours GraphQL schema (required if you want to create yours GraphQL)
  * @property  {string}    [resolverPath]    Path of yours GraphQL resolver (required if you want to create yours GraphQL)
+ * @property  {function}  [context]
+ * @property  {function}  [formatError]
  */
