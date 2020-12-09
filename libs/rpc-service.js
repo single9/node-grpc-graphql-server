@@ -1,4 +1,4 @@
-const grpc = require('grpc');
+const grpc = require('@grpc/grpc-js');
 const fs = require('fs');
 const protoLoader = require('@grpc/proto-loader');
 const grpcToGraphQL = require('../converter/index.js');

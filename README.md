@@ -6,7 +6,7 @@ gRPC GraphQL Server
 Installation
 -------------
 
-    npm install express grpc @grpc/proto-loader apollo-server-express grpc-graphql-server
+    npm install express @grpc/proto-loader apollo-server-express grpc-graphql-server
 
 Usage
 -----

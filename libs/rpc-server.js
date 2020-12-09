@@ -1,4 +1,4 @@
-const grpc = require('grpc');
+const grpc = require('@grpc/grpc-js');
 const EventEmitter = require('events').EventEmitter;
 const { ApolloServer, makeExecutableSchema, gql } = require('apollo-server-express');
 const RPCService = require('./rpc-service.js');
@@ -20,10 +20,12 @@ class RPCServer extends EventEmitter {
       graphql,
     });
 
-    this.rpcService.grpcServer.bind(ip + ':' + port, creds || grpc.ServerCredentials.createInsecure());
-    this.rpcService.grpcServer.start();
-
-    console.log('gRPC Server started %s:%d', ip, port);
+    this.rpcService.grpcServer.bindAsync(ip + ':' + port, creds || grpc.ServerCredentials.createInsecure(), (err, grpcPort) => {
+      if (err) throw err;
+      this.rpcService.grpcServer.start();
+      this.port = grpcPort;
+      console.log('gRPC Server started %s:%d', ip, grpcPort);
+    });
 
     // GraphQL server is not running by default. Set `graphql` to enabled.
     if ((graphql === undefined) || ((typeof graphql === 'boolean') && graphql !== true) || (typeof graphql === 'object' && graphql.enable !== true)) {

@@ -1,4 +1,4 @@
-const grpc = require('grpc');
+const grpc = require('@grpc/grpc-js');
 const grpcToGraphQL = require('../converter/index.js');
 const { recursiveGetPackage, replacePackageName } = require('./tools.js');
 const RPCService = require('./rpc-service.js');

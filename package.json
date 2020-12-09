@@ -22,8 +22,10 @@
     "apollo-server-express": "^2.18.2",
     "express": "^4.17.1",
     "graphql-request": "^3.3.0",
-    "grpc": "^1.24.3",
     "mocha": "^8.2.0",
     "should": "^13.2.3"
+  },
+  "dependencies": {
+    "@grpc/grpc-js": "^1.2.2"
   }
 }
