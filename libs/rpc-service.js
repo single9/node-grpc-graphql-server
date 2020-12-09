@@ -35,14 +35,44 @@ class RPCService {
     this.packageObject = {};
     this.graphql = graphql;
 
-    if (packages) this.init();
+    if (packages) {
+      // map object to array
+      this.__init_packages_mapping();
+      // do initialize
+      this.init();
+    }
   }
 
   /**
    * Initialize
    */
   init() {
-    // map object to array
+    // main process
+    if (Array.isArray(this.packages) === false) throw new Error('Unable to initialize');
+    // load definitions from packages
+    const packageDefinition = grpc.loadPackageDefinition(this.packageDefinition);
+    if (this.grpcServer && (this.graphql === true || (this.graphql && this.graphql.enable === true))) {
+      this.gqlSchema = grpcToGraphQL(packageDefinition, this.packages);
+    }
+
+    this.packages.forEach(pack => {
+      const packNames = pack.name.split('.');
+      const packageName = replacePackageName(pack.name);
+      const packageObject = 
+        this.packageObject[packageName] = recursiveGetPackage(packNames, packageDefinition);
+
+      if (this.grpcServer) {
+        // gRPC server mode
+        pack.services.forEach(service => {
+          this.grpcServer.addService(packageObject[service.name].service, service.implementation);
+        });
+      } else {
+        throw new Error('Unable to initialize gRPC server');
+      }
+    });
+  }
+
+  __init_packages_mapping() {
     if (Array.isArray(this.packages) === false && (typeof this.packages === 'object')) {
       let newPackages = [];
       let packageKeys = Object.keys(this.packages);
@@ -60,70 +90,6 @@ class RPCService {
         });
       });
       this.packages = newPackages;
-    }
-
-    // main process
-    if (Array.isArray(this.packages)) {
-      // load definitions from packages
-      const packageDefinition = grpc.loadPackageDefinition(this.packageDefinition);
-      if (this.grpcServer && (this.graphql === true || (this.graphql && this.graphql.enable === true))) {
-        this.gqlSchema = grpcToGraphQL(packageDefinition, this.packages);
-      }
-
-      this.packages.forEach(pack => {
-        const packNames = pack.name.split('.');
-        const packageName = replacePackageName(pack.name);
-        const packageObject = 
-          this.packageObject[packageName] = recursiveGetPackage(packNames, packageDefinition);
-
-        if (this.grpcServer) {
-          // gRPC server mode
-          pack.services.forEach(service => {
-            this.grpcServer.addService(packageObject[service.name].service, service.implementation);
-          });
-        } else {
-          // gRPC client mode
-          pack.services.forEach(service => {
-            if (!this.clients[packageName]) {
-              this.clients[packageName] = {};
-            }
-            service.host = service.host || 'localhost';
-            service.port = service.port || '50051';
-            const host = `${service.host}:${service.port}`;
-            const serviceFunctionsKey = Object.keys(packageObject[service.name].service);
-            const serviceClient = new packageObject[service.name](
-              host || 'localhost:50051',
-              service.creds || grpc.credentials.createInsecure()
-            );
-            const newFunctions = Object.assign({}, serviceClient);
-            serviceFunctionsKey.forEach((fnName) => {
-              // Promise the functions
-              newFunctions[fnName] = (...args) => {
-                // ensure passing an object to function. Because gRPC need.
-                if (args.length === 0) {
-                  args[0] = {};
-                }
-
-                if (args.length === 1 && typeof args[0] !== 'function') {
-                  // wrap with promise if callback is unset
-                  return new Promise((resolve, reject) => {
-                    serviceClient[fnName](args[0], (err, response) => {
-                      if (err) return reject(err);
-                      resolve(response);
-                    });
-                  });
-                } else {
-                  return serviceClient[fnName](...args);
-                }
-              };
-            });
-            // map functions
-            this.clients[packageName][service.name] = newFunctions;
-          });
-        }
-      });
-    } else {
-      throw new Error('Unable to initialize');
     }
   }
 }
