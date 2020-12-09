@@ -4,8 +4,7 @@
   "description": "Generates a GraphQL schema from gRPC Protobuf and creates the server",
   "main": "index.js",
   "scripts": {
-    "test": "mocha",
-    "preversion": "eslint --fix . && git commit -a --amend --no-edit"
+    "test": "mocha"
   },
   "keywords": [
     "gRPC",
