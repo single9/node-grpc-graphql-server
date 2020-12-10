@@ -9,10 +9,10 @@ class RPCClient extends RPCService {
    * @param {ClientConstructorParams}      params
    * @param {protoLoader.Options}          opts 
    */
-  constructor({protoFile, packages}, opts) {
+  constructor({protoFile, packages, originalClass}, opts) {
     super({protoFile, packages}, opts);
 
-    if (!(opts && opts.originalClass)) {
+    if (!originalClass) {
       return this.clients;
     }
   }
@@ -92,4 +92,6 @@ module.exports = RPCClient;
  * @typedef  {object} ClientConstructorParams
  * @property {string|string[]}               [protoFile]
  * @property {RPCService.RPCServicePackages} packages
+ * @property {boolean}                       originalClass Return class instance of RPC Client.
+ *                                                         This is useful if you want more feature, such as events.
  */
