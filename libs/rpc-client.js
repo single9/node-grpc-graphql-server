@@ -59,14 +59,16 @@ class RPCClient extends RPCService {
               return new Promise((resolve, reject) => {
                 serviceClient[fnName](args[0], (err, response) => {
                   if (err) {
-                    this.emit('grpc_client_error', {
+                    const errDetails = {
                       error: err,
                       call: {
                         service: service.name,
                         function: fnName,
                         request: args[0],
                       },
-                    });
+                    };
+                    this.emit('grpc_client_error', errDetails);
+                    err.details = JSON.stringify(errDetails);
                     return reject(err);
                   }
                   resolve(response);
