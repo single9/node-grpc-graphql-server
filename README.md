@@ -296,6 +296,39 @@ const rpcServer = new RPCServer({
 });
 ```
 
+Events
+----------
+
+**From versioon 0.3.1**
+
+We add events to let you can handle more, such as client errors.
+
+### Server
+
+**grpc_server_started**
+
+Fired when grpc server is started.
+
+- Payload
+  - ip: server ip
+  - port: server port
+
+**gql_server_enabled**
+
+Fired when GraphQL server is ready.
+### Client
+
+**grpc_client_error**
+
+Fired when grpc client got error.
+
+- Payload
+  - error: gRPC errors ([Status Response Codes](https://developers.google.com/maps-booking/reference/grpc-api/status_codes))
+  - call:
+    - service: Service Name
+    - functionName: Function name
+    - request: Function request parameters
+
 Notes
 ----------
 

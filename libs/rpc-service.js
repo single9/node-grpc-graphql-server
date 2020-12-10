@@ -1,17 +1,20 @@
 const grpc = require('@grpc/grpc-js');
 const fs = require('fs');
+const EventEmitter = require('events').EventEmitter;
 const protoLoader = require('@grpc/proto-loader');
 const grpcToGraphQL = require('../converter/index.js');
 const { recursiveGetPackage, replacePackageName, readProtofiles } = require('./tools.js');
 const { RPC_CONFS = process.cwd() + '/conf/rpc' } = process.env;
 
-class RPCService {
+class RPCService extends EventEmitter {
   /**
    * Creates instance of RPC service.
    * @param {RPCServiceConstructorParams}  params
    * @param {protoLoader.Options}          opts 
    */
   constructor({ grpcServer, protoFile, packages, graphql }, opts) {
+    super();
+
     if (protoFile && (!Array.isArray(protoFile) && fs.statSync(protoFile).isDirectory())) {
       protoFile = readProtofiles(protoFile);
     } else if (!protoFile) {

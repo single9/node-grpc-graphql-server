@@ -11,7 +11,10 @@ class RPCClient extends RPCService {
    */
   constructor({protoFile, packages}, opts) {
     super({protoFile, packages}, opts);
-    return this.clients;
+
+    if (!(opts && opts.originalClass)) {
+      return this.clients;
+    }
   }
 
   init() {
@@ -55,7 +58,17 @@ class RPCClient extends RPCService {
               // wrap with promise if callback is not a function
               return new Promise((resolve, reject) => {
                 serviceClient[fnName](args[0], (err, response) => {
-                  if (err) return reject(err);
+                  if (err) {
+                    this.emit('grpc_client_error', {
+                      error: err,
+                      call: {
+                        service: service.name,
+                        function: fnName,
+                        request: args[0],
+                      },
+                    });
+                    return reject(err);
+                  }
                   resolve(response);
                 });
               });
@@ -71,11 +84,6 @@ class RPCClient extends RPCService {
   }
 }
 
-/**
- * Creates instance of RPC Client.
- * @param {ClientConstructorParams} param0 
- * @param {protoLoader.Options} opts 
- */
 module.exports = RPCClient;
 
 /**
