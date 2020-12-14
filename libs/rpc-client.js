@@ -68,8 +68,7 @@ class RPCClient extends RPCService {
                       },
                     };
                     this.emit('grpc_client_error', errDetails);
-                    err.details = JSON.stringify(errDetails);
-                    return reject(err);
+                    return reject(errDetails);
                   }
                   resolve(response);
                 });
