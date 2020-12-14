@@ -68,7 +68,9 @@ class RPCClient extends RPCService {
                       },
                     };
                     this.emit('grpc_client_error', errDetails);
-                    return reject(errDetails);
+                    // add call to error object
+                    err = Object.assign({ call: errDetails.call }, err);
+                    return reject(err);
                   }
                   resolve(response);
                 });
