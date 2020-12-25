@@ -1,3 +1,4 @@
+const fs = require('fs');
 const grpc = require('@grpc/grpc-js');
 const EventEmitter = require('events').EventEmitter;
 const { ApolloServer, makeExecutableSchema, gql } = require('apollo-server-express');
@@ -49,9 +50,11 @@ class RPCServer extends EventEmitter {
     let registerResolvers = [];
     
     if (schemaPath && resolverPath) {
-      const schemas = readDir(schemaPath, '.js');
+      const schemasJs = readDir(schemaPath, '.js');
+      const schemasGraphql = readDir(schemaPath, '.graphql');
       const controllers = readDir(resolverPath, '.js');
-      schemas.map( x => registerTypes.push(require(x)));
+      schemasJs.map( x => registerTypes.push(require(x)));
+      schemasGraphql.map( x => registerTypes.push(fs.readFileSync(x, { encoding: 'utf8' })));
       controllers.map( x => registerResolvers.push(require(x)));
     }
 
