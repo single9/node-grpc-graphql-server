@@ -34,7 +34,7 @@ class RPCServer extends EventEmitter {
       return this;
     }
     
-    const { schemaPath, resolverPath, context, formatError } = graphql;
+    const { schemaPath, resolverPath, context, formatError, playground, introspection } = graphql;
 
     const rootTypeDefs = `
       type Query{
@@ -72,7 +72,7 @@ class RPCServer extends EventEmitter {
       registerResolvers.push(genResolvers(this.rpcService.packages));
     }
 
-    this.gqlConfigs = { logger, context, formatError };
+    this.gqlConfigs = { logger, context, formatError, playground, introspection };
     this.gqlConfigs.schema = makeExecutableSchema({
       typeDefs: registerTypes,
       resolvers: registerResolvers,
@@ -107,4 +107,13 @@ module.exports = RPCServer;
  * @property  {string}    [resolverPath]    Path of yours GraphQL resolver (required if you want to create yours GraphQL)
  * @property  {function}  [context]
  * @property  {function}  [formatError]
+ * @property  {object}    [introspection]
+ * @property  {boolean|Playground} [playground] Reference:
+ *                                              https://www.apollographql.com/docs/apollo-server/testing/graphql-playground/#configuring-playground
+ */
+
+/**
+ * @typedef  {object} Playground
+ * @property  {object}   [settings]
+ * @property  {object[]} [tabs]
  */
