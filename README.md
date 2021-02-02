@@ -1,15 +1,12 @@
-gRPC GraphQL Server
-===================
+# gRPC GraphQL Server
 
 ![test](https://github.com/single9/node-grpc-graphql-server/workflows/test/badge.svg?branch=master) ![npm](https://github.com/single9/node-grpc-graphql-server/workflows/npm/badge.svg)
 
-Installation
--------------
+## Installation
 
     npm install express @grpc/proto-loader apollo-server-express grpc-graphql-server
 
-Usage
------
+## Usage
 
 ### Server
 
@@ -48,32 +45,38 @@ message HelloReply {
 Create a file named index.js. This is your server.
 
 ```js
-const app = require('express')();
-const RPCServer = require('grpc-graphql-server').RPCServer;
+const app = require("express")();
+const RPCServer = require("grpc-graphql-server").RPCServer;
 
-function response (resData, callback) {
+function response(resData, callback) {
   // for gRPC
-  if (typeof callback === 'function') {
+  if (typeof callback === "function") {
     return callback(null, resData);
   }
 
   // for grapgql
   return new Promise((resolve, reject) => {
-    resolve(resData)
-  })
+    resolve(resData);
+  });
 }
 
 class Hello {
   SayHello(call, callback) {
-    return response({
-      message: 'Hello ' + call.request.name
-    }, callback);
+    return response(
+      {
+        message: "Hello " + call.request.name,
+      },
+      callback
+    );
   }
 
   SayHelloAgain(call, callback) {
-    return response({
-      message: 'Hello again ' + call.request.name
-    }, callback);
+    return response(
+      {
+        message: "Hello again " + call.request.name,
+      },
+      callback
+    );
   }
 }
 
@@ -85,19 +88,19 @@ const rpcServer = new RPCServer({
   // port: 50052,    // uncomment to set gRPC port on 50052
   // protoFile: __dirname + '/protos/hello.proto', // set the protobuf file path. (string|string[])
   // protoFile: __dirname + '/protos', // set the path of protobuf files.
-  graphql: true,     // Set true to enable GrpahQL because it's not enabled by default.
+  graphql: true, // Set true to enable GrpahQL because it's not enabled by default.
   packages: [
     {
-      name: 'helloworld',
+      name: "helloworld",
       services: [
         {
-          name: 'Greeter',
+          name: "Greeter",
           implementation: methods.hello,
           mutate: false,
-        }
-      ]
+        },
+      ],
     },
-  ]
+  ],
 });
 
 if (rpcServer.gqlServer) {
@@ -105,7 +108,7 @@ if (rpcServer.gqlServer) {
 }
 
 app.listen(3000, () => {
-  console.log('Server started. http://localhost:3000');
+  console.log("Server started. http://localhost:3000");
 });
 ```
 
@@ -130,33 +133,38 @@ const rpcServer = new RPCServer({
 See `examples/helloworld/grpc-client.js`.
 
 ```js
-const { RPCClient } = require('grpc-graphql-server');
+const { RPCClient } = require("grpc-graphql-server");
 const rpcClient = new RPCClient({
   // protoFile: __dirname + '/protos', // Set this if your protobuf file doesn't located in the default directory.
   packages: [
     {
-      name: 'helloworld',
+      name: "helloworld",
       services: [
         {
-          name: 'Greeter',
+          name: "Greeter",
           // port: 50052,  // Uncomment this to set gRPC client port to 50052
-        }
-      ]
+        },
+      ],
     },
-  ]
+  ],
 });
 
 async function main() {
   // call with callback
-  rpcClient.helloworld.Greeter.SayHelloAgain({ name: 'test again' }, function (err, response) {
-    if (err) return console.log('no response');
-    console.log('Greeting again:', response.message);
-  });
+  rpcClient.helloworld.Greeter.SayHelloAgain(
+    { name: "test again" },
+    function (err, response) {
+      if (err) return console.log("no response");
+      console.log("Greeting again:", response.message);
+    }
+  );
 
   // call with promise
-  const sayHelloResponse = await rpcClient.helloworld.Greeter.SayHello({ name: 'test' });
+  const sayHelloResponse = await rpcClient.helloworld.Greeter.SayHello({
+    name: "test",
+  });
   const SayNestedResponse = await rpcClient.helloworld.Greeter.SayNested({});
-  console.log('Greeting', sayHelloResponse.message);
+  console.log("Greeting", sayHelloResponse.message);
   console.log(SayNestedResponse);
 }
 
@@ -186,8 +194,8 @@ const rpcServer = new RPCClient({
 #### Usage
 
 ```js
-const { request, gql } = require('graphql-request');
- 
+const { request, gql } = require("graphql-request");
+
 const query = gql`
   {
     <package_name> {
@@ -199,9 +207,10 @@ const query = gql`
     }
   }
 `;
- 
-request('http://localhost:3000/graphql', query)
-  .then((data) => console.log(data));
+
+request("http://localhost:3000/graphql", query).then((data) =>
+  console.log(data)
+);
 ```
 
 #### Example
@@ -209,7 +218,7 @@ request('http://localhost:3000/graphql', query)
 See `examples/helloworld/graphql-client.js`.
 
 ```js
-const { request, gql } = require('graphql-request');
+const { request, gql } = require("graphql-request");
 const query = gql`
   {
     helloworld {
@@ -221,14 +230,15 @@ const query = gql`
     }
   }
 `;
- 
-request('http://localhost:3000/graphql', query)
-  .then((data) => console.log(JSON.stringify(data)));
+
+request("http://localhost:3000/graphql", query).then((data) =>
+  console.log(JSON.stringify(data))
+);
 ```
 
 ### Manually GraphQL Schema and Resolver
 
-This package generates GraphQL schema and resolver from gRPC protocol buffers by default. Now you can 
+This package generates GraphQL schema and resolver from gRPC protocol buffers by default. Now you can
 specify your own GraphQL schema and resolver to the server.
 
 Thanks to [w4567892015](https://github.com/w4567892015) with [PR#4](https://github.com/single9/node-grpc-graphql-server/pull/4).
@@ -251,7 +261,7 @@ const rpcServer = new RPCServer({
 #### Context
 
 We use [ApolloServer](https://www.apollographql.com/) to build our GraphQL server. It provides `context` argument for passing things
-that any resolver might need, like authentication, databases, etc. 
+that any resolver might need, like authentication, databases, etc.
 
 Ref: ([The context argument - ApolloServer](https://www.apollographql.com/docs/apollo-server/data/resolvers/#the-context-argument))
 
@@ -267,6 +277,7 @@ const rpcServer = new RPCServer({
   ...
 });
 ```
+
 ##### Example
 
 **Server**
@@ -275,35 +286,44 @@ See `examples/helloworld-alt`.
 
 ```js
 const rpcServer = new RPCServer({
-  protoFile: __dirname + '/protos/hello.proto', // set the protobuf file path. (string|string[])
+  protoFile: __dirname + "/protos/hello.proto", // set the protobuf file path. (string|string[])
   graphql: {
-    enable: true,   // Set true to enable GrpahQL because it's not enabled by default.
-    schemaPath: path.join(__dirname, './schema'),
-    resolverPath: path.join(__dirname, './controllers/graphql'),
+    enable: true, // Set true to enable GrpahQL because it's not enabled by default.
+    schemaPath: path.join(__dirname, "./schema"),
+    resolverPath: path.join(__dirname, "./controllers/graphql"),
   },
   packages: [
     {
-      name: 'helloworld',
+      name: "helloworld",
       services: [
         {
-          name: 'Greeter',
+          name: "Greeter",
           implementation: methods.hello,
           mutate: false,
-        }
-      ]
+        },
+      ],
     },
-  ]
+  ],
 });
 ```
 
-Events
-----------
+## Events
 
-**From versioon 0.3.1**
+**Since versioon 0.3.1**
 
 We add events to let you can handle more, such as client errors.
 
-### Server
+**Usage**
+
+Only client need.
+
+```
+const client = new RPCClient({
+  originalClass: true
+});
+```
+
+### Event: Server
 
 **grpc_server_started**
 
@@ -316,7 +336,8 @@ Fired when grpc server is started.
 **gql_server_enabled**
 
 Fired when GraphQL server is ready.
-### Client
+
+### Event: Client
 
 **grpc_client_error**
 
@@ -329,12 +350,11 @@ Fired when grpc client got error.
     - functionName: Function name
     - request: Function request parameters
 
-Notes
-----------
+## Notes
 
 ### Package Name
 
-If your package name is `topname.subname.v1`, it will replaced the `.` to `_`. So your new package 
+If your package name is `topname.subname.v1`, it will replaced the `.` to `_`. So your new package
 name in the server will be `topname_subname_v1`.
 
 #### Example of Client Usage

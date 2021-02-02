@@ -130,6 +130,12 @@ module.exports = RPCService;
  * @property {grpc.Server}          [grpcServer]  gRPC Server instance
  * @property {string|string[]}      protoFile     gRPC protobuf files
  * @property {RPCServicePackages[]} packages      packages
+ * @property {boolean|ParamGraphql} [graphql]     graphql configuration
+ */
+
+/**
+ * @typedef {object} ParamGraphql
+ * @property {boolean} enable  Enable GraphQL (default: false)
  */
 
 /**
