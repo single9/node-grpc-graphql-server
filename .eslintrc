@@ -6,7 +6,8 @@
   },
   "ignorePatterns": [
     "test/**/*.js",
-    "examples/**/*.js"
+    "examples/**/*.js",
+    "types/**/*.ts"
   ],
   "extends": "airbnb-base",
   "rules": {
