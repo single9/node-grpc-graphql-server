@@ -1,7 +1,7 @@
 const fs = require('fs');
 const grpc = require('@grpc/grpc-js');
 const { EventEmitter } = require('events');
-// eslint-disable-next-line import/no-unresolved
+// eslint-disable-next-line import/no-extraneous-dependencies
 const { ApolloServer, makeExecutableSchema, gql } = require('apollo-server-express');
 const RPCService = require('./rpc-service.js');
 const { genResolvers, readDir } = require('./tools.js');
