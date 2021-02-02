@@ -8,7 +8,7 @@ const methods = {
 };
 
 const rpcServer = new RPCServer({
-  port: 50052,    // set gRPC port on 50052
+  port: 50052, // set gRPC port on 50052
   graphql: {
     enable: true,
     schemaPath: path.join(__dirname, './schema'),
@@ -18,7 +18,7 @@ const rpcServer = new RPCServer({
     // }
     // auto: false,
   },
-  protoFile:  path.join(__dirname, '../protos/hello.proto'),
+  protoFile: path.join(__dirname, '../protos/hello.proto'),
   packages: {
     helloworld: {
       Greeter: {

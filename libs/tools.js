@@ -1,43 +1,53 @@
 const fs = require('fs');
 const path = require('path');
+
 const allowResolverType = [
   'query',
   'mutate',
 ];
 
 /**
- * 
+ * Replace package name
+ * @param {string} name Name
+ */
+function replacePackageName(name) {
+  return (name.indexOf('.') !== -1 && name.replace(/\./g, '_')) || name;
+}
+
+/**
+ *
  * @param {string} type Type
- * @param {RPCService.RPCServicePackages[]} packages 
+ * @param {RPCService.RPCServicePackages[]} packages
  */
 function genResolverType(type, packages) {
   if (allowResolverType.indexOf(type) < 0) throw new Error(`Invalid type: ${type}`);
 
-  let resolverObj = {};
+  const resolverObj = {};
 
-  packages.forEach(pack => {
-    let serviceFn = {};
+  packages.forEach((pack) => {
+    const serviceFn = {};
 
-    pack.services.forEach(service => {
+    pack.services.forEach((service) => {
       if (service[type] === false || service.grpcOnly) return;
       serviceFn[service.name] = () => service.implementation;
     });
 
     const packageName = replacePackageName(pack.name);
 
-    if (!resolverObj[packageName] && Object.keys(serviceFn).length > 0)
-      resolverObj[packageName] = function() {
+    if (!resolverObj[packageName] && Object.keys(serviceFn).length > 0) {
+      resolverObj[packageName] = function resolverFn() {
         return serviceFn;
       };
+    }
   });
 
   return resolverObj;
 }
 
 function genResolvers(packages) {
-  let resolvers = {};
-  let Query = genResolverType('query', packages);
-  let Mutation = genResolverType('mutate', packages);
+  const resolvers = {};
+  const Query = genResolverType('query', packages);
+  const Mutation = genResolverType('mutate', packages);
 
   if (Object.keys(Query).length > 0) {
     resolvers.Query = Query;
@@ -53,24 +63,15 @@ function genResolvers(packages) {
 /**
  * Get package data
  * @param {string} packageNames Package name
- * @param {object} __package    gRPC package object
+ * @param {object} _package    gRPC package object
  */
-function recursiveGetPackage(packageNames, __package) {
+function recursiveGetPackage(packageNames, _package) {
   const name = packageNames.shift();
-  __package = __package[name];
+  const pkg = _package[name];
   if (packageNames.length > 0) {
-    return recursiveGetPackage(packageNames, __package);
-  } else {
-    return __package;
+    return recursiveGetPackage(packageNames, pkg);
   }
-}
-
-/**
- * Replace package name
- * @param {string} name Name
- */
-function replacePackageName(name) {
-  return name.indexOf('.') !== -1 && name.replace(/\./g, '_') || name;
+  return pkg;
 }
 
 /**
@@ -86,16 +87,16 @@ function readDir(dir, extname) {
   }
 
   const protosFiles = fs.readdirSync(dir);
-  let files = protosFiles.filter(file => path.extname(file) === extname)
-    .map(file => dir + '/' + file);
+  let files = protosFiles.filter((file) => path.extname(file) === extname)
+    .map((file) => `${dir}/${file}`);
 
-  let dirs = protosFiles.filter(file => path.extname(file) !== extname)
-    .map(file => dir + '/' + file)
-    .filter(file => fs.statSync(file).isDirectory());
+  const dirs = protosFiles.filter((file) => path.extname(file) !== extname)
+    .map((file) => `${dir}/${file}`)
+    .filter((file) => fs.statSync(file).isDirectory());
 
   if (dirs.length > 0) {
-    dirs.forEach(dir => {
-      files = files.concat(readProtofiles(dir));
+    dirs.forEach((_dir) => {
+      files = files.concat(readDir(_dir, extname));
     });
   }
   return files;

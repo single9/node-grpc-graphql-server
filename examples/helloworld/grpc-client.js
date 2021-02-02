@@ -1,21 +1,22 @@
 const { RPCClient } = require('../../index.js');
+
 const rpcClient = new RPCClient({
-  protoFile: __dirname + '/../protos/hello.proto',
+  protoFile: `${__dirname}/../protos/hello.proto`,
   packages: [
     {
       name: 'helloworld',
       services: [
         {
           name: 'Greeter',
-        }
-      ]
+        },
+      ],
     },
-  ]
+  ],
 });
 
 async function main() {
   // call with callback
-  rpcClient.helloworld.Greeter.SayHelloAgain({ name: 'test again' }, function (err, response) {
+  rpcClient.helloworld.Greeter.SayHelloAgain({ name: 'test again' }, (err, response) => {
     if (err) return console.log('no response');
     console.log('Greeting again:', response.message);
   });

@@ -7,10 +7,10 @@ class RPCClient extends RPCService {
   /**
    * Creates instance of RPC Client.
    * @param {ClientConstructorParams}      params
-   * @param {protoLoader.Options}          opts 
+   * @param {protoLoader.Options}          opts
    */
-  constructor({protoFile, packages, originalClass}, opts) {
-    super({protoFile, packages}, opts);
+  constructor({ protoFile, packages, originalClass }, opts) {
+    super({ protoFile, packages }, opts);
 
     if (!originalClass) {
       return this.clients;
@@ -22,62 +22,66 @@ class RPCClient extends RPCService {
     if (Array.isArray(this.packages) === false) throw new Error('Unable to initialize');
     // load definitions from packages
     const packageDefinition = grpc.loadPackageDefinition(this.packageDefinition);
-    if (this.grpcServer && (this.graphql === true || (this.graphql && this.graphql.enable === true))) {
+    if (this.grpcServer
+      && (this.graphql === true || (this.graphql && this.graphql.enable === true))) {
       this.gqlSchema = grpcToGraphQL(packageDefinition, this.packages);
     }
 
-    this.packages.forEach(pack => {
+    this.packages.forEach((pack) => {
       const packNames = pack.name.split('.');
       const packageName = replacePackageName(pack.name);
-      const packageObject = 
-        this.packageObject[packageName] = recursiveGetPackage(packNames, packageDefinition);
+      const packageObject = recursiveGetPackage(packNames, packageDefinition);
+      this.packageObject[packageName] = packageObject;
 
       // gRPC client mode
-      pack.services.forEach(service => {
+      pack.services.forEach((service) => {
+        const _service = service;
         if (!this.clients[packageName]) {
           this.clients[packageName] = {};
         }
-        service.host = service.host || 'localhost';
-        service.port = service.port || '50051';
-        const host = `${service.host}:${service.port}`;
-        const serviceFunctionsKey = Object.keys(packageObject[service.name].service);
-        const serviceClient = new packageObject[service.name](
+        _service.host = _service.host || 'localhost';
+        _service.port = _service.port || '50051';
+        const host = `${_service.host}:${_service.port}`;
+        const serviceFunctionsKey = Object.keys(packageObject[_service.name].service);
+        const serviceClient = new packageObject[_service.name](
           host || 'localhost:50051',
-          service.creds || grpc.credentials.createInsecure()
+          _service.creds || grpc.credentials.createInsecure(),
         );
-        const newFunctions = Object.assign({}, serviceClient);
+        const newFunctions = { ...serviceClient };
         serviceFunctionsKey.forEach((fnName) => {
           // Promise the functions
           newFunctions[fnName] = (...args) => {
             // ensure passing an object to function. Because gRPC need.
-            if (args.length === 0) {
-              args[0] = {};
+            const _args = args;
+            if (_args.length === 0) {
+              _args[0] = {};
             }
 
-            if (args.length === 1 && typeof args[0] !== 'function') {
+            if (_args.length === 1 && typeof _args[0] !== 'function') {
               // wrap with promise if callback is not a function
               return new Promise((resolve, reject) => {
-                serviceClient[fnName](args[0], (err, response) => {
+                serviceClient[fnName](_args[0], (err, response) => {
                   if (err) {
+                    const _err = err;
                     const errDetails = {
-                      error: err,
+                      error: _err,
                       call: {
-                        service: service.name,
+                        service: _service.name,
                         function: fnName,
                         request: args[0],
                       },
                     };
                     this.emit('grpc_client_error', errDetails);
                     // add call to error object
-                    err.call = errDetails.call;
-                    return reject(err);
+                    _err.call = errDetails.call;
+                    reject(_err);
+                    return;
                   }
                   resolve(response);
                 });
               });
-            } else {
-              return serviceClient[fnName](...args);
             }
+            return serviceClient[fnName](...args);
           };
         });
         // map functions
@@ -93,6 +97,6 @@ module.exports = RPCClient;
  * @typedef  {object} ClientConstructorParams
  * @property {string|string[]}               [protoFile]
  * @property {RPCService.RPCServicePackages} packages
- * @property {boolean}                       originalClass Return class instance of RPC Client.
- *                                                         This is useful if you want more feature, such as events.
+ * @property {boolean}  originalClass Return class instance of RPC Client.
+ *                      This is useful if you want more feature, such as events.
  */

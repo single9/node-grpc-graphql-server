@@ -1,4 +1,5 @@
 const { request, gql } = require('graphql-request');
+
 const query = gql`
   {
     helloworld {
@@ -10,5 +11,5 @@ const query = gql`
     }
   }
 `;
- 
+
 request('http://localhost:3000/graphql', query).then((data) => console.log(JSON.stringify(data)));

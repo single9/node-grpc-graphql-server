@@ -1,33 +1,38 @@
 const grpc = require('@grpc/grpc-js');
 const fs = require('fs');
-const EventEmitter = require('events').EventEmitter;
+const { EventEmitter } = require('events');
 const protoLoader = require('@grpc/proto-loader');
 const grpcToGraphQL = require('../converter/index.js');
 const { recursiveGetPackage, replacePackageName, readProtofiles } = require('./tools.js');
-const { RPC_CONFS = process.cwd() + '/conf/rpc' } = process.env;
+
+const { RPC_CONFS = `${process.cwd()}/conf/rpc` } = process.env;
 
 class RPCService extends EventEmitter {
   /**
    * Creates instance of RPC service.
    * @param {RPCServiceConstructorParams}  params
-   * @param {protoLoader.Options}          opts 
+   * @param {protoLoader.Options}          opts
    */
-  constructor({ grpcServer, protoFile, packages, graphql }, opts) {
+  constructor({
+    grpcServer, protoFile, packages, graphql,
+  }, opts) {
     super();
 
+    let _protoFile = protoFile;
+
     if (protoFile && (!Array.isArray(protoFile) && fs.statSync(protoFile).isDirectory())) {
-      protoFile = readProtofiles(protoFile);
+      _protoFile = readProtofiles(protoFile);
     } else if (!protoFile) {
-      protoFile = readProtofiles(RPC_CONFS);
+      _protoFile = readProtofiles(RPC_CONFS);
     }
 
     // load protobuf
-    this.packageDefinition = protoLoader.loadSync(protoFile, opts || {
+    this.packageDefinition = protoLoader.loadSync(_protoFile, opts || {
       keepCase: true,
       longs: String,
       enums: String,
       defaults: true,
-      oneofs: true
+      oneofs: true,
     });
 
     this.packages = packages;
@@ -54,19 +59,20 @@ class RPCService extends EventEmitter {
     if (Array.isArray(this.packages) === false) throw new Error('Unable to initialize');
     // load definitions from packages
     const packageDefinition = grpc.loadPackageDefinition(this.packageDefinition);
-    if (this.grpcServer && (this.graphql === true || (this.graphql && this.graphql.enable === true))) {
+    if (this.grpcServer
+      && (this.graphql === true || (this.graphql && this.graphql.enable === true))) {
       this.gqlSchema = grpcToGraphQL(packageDefinition, this.packages);
     }
 
-    this.packages.forEach(pack => {
+    this.packages.forEach((pack) => {
       const packNames = pack.name.split('.');
       const packageName = replacePackageName(pack.name);
-      const packageObject = 
-        this.packageObject[packageName] = recursiveGetPackage(packNames, packageDefinition);
+      const packageObject = recursiveGetPackage(packNames, packageDefinition);
+      this.packageObject[packageName] = packageObject;
 
       if (this.grpcServer) {
         // gRPC server mode
-        pack.services.forEach(service => {
+        pack.services.forEach((service) => {
           this.grpcServer.addService(packageObject[service.name].service, service.implementation);
         });
       } else {
@@ -77,13 +83,13 @@ class RPCService extends EventEmitter {
 
   __init_packages_mapping() {
     if (Array.isArray(this.packages) === false && (typeof this.packages === 'object')) {
-      let newPackages = [];
-      let packageKeys = Object.keys(this.packages);
-      packageKeys.forEach(pack => {
-        let newServices = [];
+      const newPackages = [];
+      const packageKeys = Object.keys(this.packages);
+      packageKeys.forEach((pack) => {
+        const newServices = [];
         const servicesKeys = Object.keys(this.packages[pack]);
-        servicesKeys.forEach(service => {
-          let serviceObj = Object.assign({}, this.packages[pack][service]);
+        servicesKeys.forEach((service) => {
+          const serviceObj = { ...this.packages[pack][service] };
           serviceObj.name = service;
           newServices.push(serviceObj);
         });
@@ -101,10 +107,12 @@ module.exports = RPCService;
 
 /**
  * @typedef {object} ServicesDescriptor
- * @property {string}                   name  service name
- * @property {string}                   [host='localhost']  (Client Only) service host (default: 'localhost')
- * @property {number}                   [port=50051]        (Client Only) service port (default: 50051)
- * @property {grpc.ServerCredentials}   [creds=grpc.credentials.createInsecure()]  (Client Only) service server credentials (default: insecure)
+ * @property {string} name  service name
+ * @property {string} [host='localhost']  (Client Only) service host (default: 'localhost')
+ * @property {number} [port=50051]        (Client Only) service port (default: 50051)
+ * @property {grpc.ServerCredentials}   [creds=grpc.credentials.createInsecure()]
+ *                                        (Client Only) service server credentials
+ *                                        (default: insecure)
  * @property {Object<string, function>} implementation      Service implementation (controller)
  * @property {boolean}                  [mutate=false]      (GraphQL mutatiom) Is it can be mutated?
  * @property {boolean}                  [query=true]        (GraphQL query)    Is it can be queried?

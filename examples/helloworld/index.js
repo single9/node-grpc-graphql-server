@@ -9,7 +9,7 @@ const methods = {
 const rpcServer = new RPCServer({
   // port: 50052,    // uncomment to set gRPC port on 50052
   graphql: true,
-  protoFile: __dirname + '/../protos/hello.proto',
+  protoFile: `${__dirname}/../protos/hello.proto`,
   packages: [
     {
       name: 'helloworld',
@@ -17,10 +17,10 @@ const rpcServer = new RPCServer({
         {
           name: 'Greeter',
           implementation: methods.hello,
-        }
-      ]
+        },
+      ],
     },
-  ]
+  ],
 });
 
 if (rpcServer.gqlServer) {

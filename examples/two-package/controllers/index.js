@@ -1,13 +1,16 @@
-const { readDir } = require('../tools.js');
+/* eslint-disable global-require */
+/* eslint-disable import/no-dynamic-require */
+const { readDir } = require('../../../libs/tools.js');
 
-let controller = {};;
-
+const controller = {};
 const controllerFiles = readDir(__dirname, '.js');
-controllerFiles.forEach(file => {
-  let controllerClass = require(file);
-  if (('name' in controllerClass) === false) return;
-  let name = controllerClass.name;
-  controller[name] = new controllerClass();
+
+controllerFiles.forEach((file) => {
+  const ControllerClass = require(file);
+  if (('name' in ControllerClass) === false) return;
+  const { name } = ControllerClass;
+  const tmpClass = new ControllerClass();
+  controller[name] = tmpClass;
 });
 
 module.exports = controller;

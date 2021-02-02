@@ -1,6 +1,6 @@
 const fs = require('fs');
 const grpc = require('@grpc/grpc-js');
-const EventEmitter = require('events').EventEmitter;
+const { EventEmitter } = require('events');
 const { ApolloServer, makeExecutableSchema, gql } = require('apollo-server-express');
 const RPCService = require('./rpc-service.js');
 const { genResolvers, readDir } = require('./tools.js');
@@ -8,9 +8,11 @@ const { genResolvers, readDir } = require('./tools.js');
 class RPCServer extends EventEmitter {
   /**
    * Creates an instance of RPC Server
-   * @param {ServerConstructorParams} param0 
+   * @param {ServerConstructorParams} param0
    */
-  constructor({protoFile, ip = '0.0.0.0', port = 50051, creds, graphql, packages, logger}) {
+  constructor({
+    protoFile, ip = '0.0.0.0', port = 50051, creds, graphql, packages, logger,
+  }) {
     super();
 
     this.gqlServer = undefined;
@@ -21,11 +23,11 @@ class RPCServer extends EventEmitter {
       graphql,
     });
 
-    this.rpcService.grpcServer.bindAsync(ip + ':' + port, creds || grpc.ServerCredentials.createInsecure(), (err, grpcPort) => {
+    this.rpcService.grpcServer.bindAsync(`${ip}:${port}`, creds || grpc.ServerCredentials.createInsecure(), (err, grpcPort) => {
       if (err) throw err;
       this.rpcService.grpcServer.start();
       this.port = grpcPort;
-      this.emit('grpc_server_started', {ip, port: grpcPort});
+      this.emit('grpc_server_started', { ip, port: grpcPort });
       console.log('gRPC Server started %s:%d', ip, grpcPort);
     });
 
@@ -33,8 +35,10 @@ class RPCServer extends EventEmitter {
     if ((graphql === undefined) || ((typeof graphql === 'boolean') && graphql !== true) || (typeof graphql === 'object' && graphql.enable !== true)) {
       return this;
     }
-    
-    const { schemaPath, resolverPath, context, formatError, playground, introspection } = graphql;
+
+    const {
+      schemaPath, resolverPath, context, formatError, playground, introspection,
+    } = graphql;
 
     const rootTypeDefs = `
       type Query{
@@ -45,23 +49,26 @@ class RPCServer extends EventEmitter {
       }
     `;
 
-    let auto = (graphql.auto !== undefined) ? graphql.auto: true;
-    let registerTypes = [ rootTypeDefs ];
-    let registerResolvers = [];
-    
+    const auto = (graphql.auto !== undefined) ? graphql.auto : true;
+    const registerTypes = [rootTypeDefs];
+    const registerResolvers = [];
+
     if (schemaPath && resolverPath) {
+      /* eslint-disable import/no-dynamic-require */
+      /* eslint-disable global-require */
+      /* eslint-disable-next-line import/no-dynamic-require */
       const schemasJs = readDir(schemaPath, '.js');
       const schemasGraphql = readDir(schemaPath, '.graphql');
       const controllers = readDir(resolverPath, '.js');
-      schemasJs.map( x => registerTypes.push(require(x)));
-      schemasGraphql.map( x => registerTypes.push(fs.readFileSync(x, { encoding: 'utf8' })));
-      controllers.map( x => registerResolvers.push(require(x)));
+      schemasJs.map((x) => registerTypes.push(require(x)));
+      schemasGraphql.map((x) => registerTypes.push(fs.readFileSync(x, { encoding: 'utf8' })));
+      controllers.map((x) => registerResolvers.push(require(x)));
     }
 
     if (auto) {
       // Construct a schema, using GraphQL schema language from
       // protobuf to GraphQL converter
-      const gqlSchema = this.rpcService.gqlSchema;
+      const { gqlSchema } = this.rpcService;
       if (!gqlSchema) {
         console.warn('GraphQL Server start failed due to missing schema.');
         return this;
@@ -72,7 +79,9 @@ class RPCServer extends EventEmitter {
       registerResolvers.push(genResolvers(this.rpcService.packages));
     }
 
-    this.gqlConfigs = { logger, context, formatError, playground, introspection };
+    this.gqlConfigs = {
+      logger, context, formatError, playground, introspection,
+    };
     this.gqlConfigs.schema = makeExecutableSchema({
       typeDefs: registerTypes,
       resolvers: registerResolvers,
@@ -103,8 +112,10 @@ module.exports = RPCServer;
 /**
  * @typedef   {object} GraphqlProperty
  * @property  {boolean}   [enable=false]    Set to true to enable GraphQL
- * @property  {string}    [schemaPath]      Path of yours GraphQL schema (required if you want to create yours GraphQL)
- * @property  {string}    [resolverPath]    Path of yours GraphQL resolver (required if you want to create yours GraphQL)
+ * @property  {string}    [schemaPath]      Path of yours GraphQL schema
+ *                                          (required if you want to create yours GraphQL)
+ * @property  {string}    [resolverPath]    Path of yours GraphQL resolver
+ *                                          (required if you want to create yours GraphQL)
  * @property  {function}  [context]
  * @property  {function}  [formatError]
  * @property  {object}    [introspection]

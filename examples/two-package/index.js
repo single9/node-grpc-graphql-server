@@ -5,7 +5,7 @@ const { Calculator, Hello } = require('./controllers');
 const rpcServer = new RPCServer({
   // port: 50052,    // uncomment to set gRPC port on 50052
   graphql: true,
-  protoFile: __dirname + '/../protos/',
+  protoFile: `${__dirname}/../protos/`,
   packages: [
     {
       name: 'helloworld',
@@ -14,8 +14,8 @@ const rpcServer = new RPCServer({
           name: 'Greeter',
           implementation: Hello,
           mutate: false, // disable mutation in GraphQL
-        }
-      ]
+        },
+      ],
     },
     {
       name: 'calculator',
@@ -28,10 +28,10 @@ const rpcServer = new RPCServer({
           name: 'Complex',
           implementation: Calculator,
           query: false, // disable query in GraphQL
-        }
-      ]
+        },
+      ],
     },
-  ]
+  ],
 });
 
 if (rpcServer.gqlServer) {
