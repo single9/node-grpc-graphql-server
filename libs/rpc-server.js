@@ -29,7 +29,6 @@ class RPCServer extends EventEmitter {
       this.rpcService.grpcServer.start();
       this.port = grpcPort;
       this.emit('grpc_server_started', { ip, port: grpcPort });
-      console.log('gRPC Server started %s:%d', ip, grpcPort);
     });
 
     // GraphQL server is not running by default. Set `graphql` to enabled.

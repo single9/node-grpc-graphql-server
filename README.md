@@ -103,6 +103,10 @@ const rpcServer = new RPCServer({
   ],
 });
 
+rpcServer.once("grpc_server_started", async (payload) => {
+  console.log("gRPC server started at " + payload);
+});
+
 if (rpcServer.gqlServer) {
   rpcServer.gqlServer.applyMiddleware({ app });
 }
