@@ -2,10 +2,11 @@ const fs = require('fs');
 const grpc = require('@grpc/grpc-js');
 const { EventEmitter } = require('events');
 // eslint-disable-next-line import/no-extraneous-dependencies
-const { ApolloServer, makeExecutableSchema, gql } = require('apollo-server-express');
+const ApolloServerExpress = require('apollo-server-express');
 const RPCService = require('./rpc-service.js');
 const { genResolvers, readDir } = require('./tools.js');
 
+const { ApolloServer, makeExecutableSchema, gql } = ApolloServerExpress;
 class RPCServer extends EventEmitter {
   /**
    * Creates an instance of RPC Server
@@ -37,7 +38,7 @@ class RPCServer extends EventEmitter {
     }
 
     const {
-      schemaPath, resolverPath, context, formatError, playground, introspection,
+      schemaPath, resolverPath, context, formatError, playground, introspection, apolloConfig,
     } = graphql;
 
     const rootTypeDefs = `
@@ -82,17 +83,15 @@ class RPCServer extends EventEmitter {
     this.gqlConfigs = {
       logger, context, formatError, playground, introspection,
     };
+
     this.gqlConfigs.schema = makeExecutableSchema({
       typeDefs: registerTypes,
       resolvers: registerResolvers,
       logger,
     });
 
+    this.gqlConfigs = Object.assign(this.gqlConfigs, apolloConfig);
     this.gqlServer = new ApolloServer(this.gqlConfigs);
-
-    this.emit('gql_server_enabled');
-
-    console.log('GraphQL Server is enabled.');
   }
 }
 
@@ -121,6 +120,7 @@ module.exports = RPCServer;
  * @property  {object}    [introspection]
  * @property  {boolean|Playground} [playground] Reference:
  *                                              https://www.apollographql.com/docs/apollo-server/testing/graphql-playground/#configuring-playground
+ * @property  {ApolloServerExpress.ApolloServerExpressConfig} [apolloConfig]
  */
 
 /**

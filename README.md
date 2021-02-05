@@ -257,6 +257,9 @@ const rpcServer = new RPCServer({
     // auto: false, // Set false to disable default GraphQL generator if you don't need.
     schemaPath: 'path/to/your/graphql/schema.js',
     resolverPath: 'path/to/your/graphql/resolver.js',
+    // apolloConfig: { // other config you want to configure
+    //   tracing: true
+    //}
   },
   ...
 });
@@ -321,10 +324,12 @@ We add events to let you can handle more, such as client errors.
 
 Only client need.
 
-```
+```js
 const client = new RPCClient({
-  originalClass: true
+  originalClass: true,
 });
+
+client.om("grpc_client_error", (err) => console.log(err));
 ```
 
 ### Event: Server
@@ -336,10 +341,6 @@ Fired when grpc server is started.
 - Payload
   - ip: server ip
   - port: server port
-
-**gql_server_enabled**
-
-Fired when GraphQL server is ready.
 
 ### Event: Client
 
