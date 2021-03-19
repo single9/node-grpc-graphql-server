@@ -58,9 +58,33 @@ class RPCServer extends EventEmitter {
       /* eslint-disable import/no-dynamic-require */
       /* eslint-disable global-require */
       /* eslint-disable-next-line import/no-dynamic-require */
-      const schemasJs = readDir(schemaPath, '.js');
-      const schemasGraphql = readDir(schemaPath, '.graphql');
-      const controllers = readDir(resolverPath, '.js');
+      /** @type {string[]} */
+      let schemasGraphql;
+      /** @type {string[]} */
+      let schemasJs;
+      /** @type {string[]} */
+      let controllers;
+      if (Array.isArray(schemaPath)) {
+        schemasJs = [];
+        schemasGraphql = [];
+        schemaPath.forEach((schema) => {
+          schemasJs = schemasJs.concat(readDir(schema, '.js'));
+          schemasGraphql = schemasGraphql.concat(readDir(schema, '.graphql'));
+        });
+      } else {
+        schemasJs = readDir(schemaPath, '.js');
+        schemasGraphql = readDir(schemaPath, '.graphql');
+      }
+
+      if (Array.isArray(resolverPath)) {
+        controllers = [];
+        resolverPath.forEach((resolver) => {
+          controllers = controllers.concat(readDir(resolver, '.js'));
+        });
+      } else {
+        controllers = readDir(resolverPath, '.js');
+      }
+
       schemasJs.map((x) => registerTypes.push(require(x)));
       schemasGraphql.map((x) => registerTypes.push(fs.readFileSync(x, { encoding: 'utf8' })));
       controllers.map((x) => registerResolvers.push(require(x)));
@@ -110,11 +134,11 @@ module.exports = RPCServer;
 
 /**
  * @typedef   {object} GraphqlProperty
- * @property  {boolean}   [enable=false]    Set to true to enable GraphQL
- * @property  {string}    [schemaPath]      Path of yours GraphQL schema
- *                                          (required if you want to create yours GraphQL)
- * @property  {string}    [resolverPath]    Path of yours GraphQL resolver
- *                                          (required if you want to create yours GraphQL)
+ * @property  {boolean}            [enable=false]    Set to true to enable GraphQL
+ * @property  {string|string[]}    [schemaPath]      Path of yours GraphQL schemas
+ *                                                   (required if you want to create yours GraphQL)
+ * @property  {string|string[]}    [resolverPath]    Path of yours GraphQL resolvers
+ *                                                   (required if you want to create yours GraphQL)
  * @property  {function}  [context]
  * @property  {function}  [formatError]
  * @property  {object}    [introspection]
