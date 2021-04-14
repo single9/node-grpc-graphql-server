@@ -191,6 +191,48 @@ const rpcServer = new RPCClient({
 });
 ```
 
+### gRPC Metadata
+
+**Since Version 0.3.14**
+
+If you want to add metadata to your gRPC call, just pass `metadata` to the function.
+
+```
+{
+  metadata: [
+    ['metadata_key', 'value']
+  ]
+}
+```
+### Add Metadata to Client
+
+```js
+// call with callback and metadata
+rpcClient.helloworld.Greeter.SayHello({ name: 'test' }, { metadata: [['time', Date.now()]] }, (err, response) => {
+    if (err) return console.log('no response');
+    console.log('Greeting:', response.message);
+  });
+
+// call with promise and metadata
+const sayHelloResponse = await rpcClient.helloworld.Greeter.SayHello({ name: 'test' }, { metadata: [['time', Date.now()]] });
+```
+
+**Get Metadata in Server**
+
+Get metadata by `call.metadata`. This is a Map object so we can get the metadata very easily.
+
+```js
+class Hello extends Controller {
+  SayHello(call, callback) {
+    // get metadata from grpc call
+    console.log(call.metadata.get('time'))
+    return this.response({
+      message: `Hello ${call.request.name}`,
+    }, callback);
+  }
+}
+```
+
 ### GraphQL
 
     npm install graphql-request graphql
@@ -316,7 +358,7 @@ const rpcServer = new RPCServer({
 
 ## Events
 
-**Since versioon 0.3.1**
+**Since Version 0.3.1**
 
 We add events to let you can handle more, such as client errors.
 

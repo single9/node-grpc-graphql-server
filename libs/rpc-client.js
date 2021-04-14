@@ -53,14 +53,29 @@ class RPCClient extends RPCService {
           newFunctions[fnName] = (...args) => {
             // ensure passing an object to function. Because gRPC need.
             const _args = args;
+            // add metadata
+            const metadata = new grpc.Metadata();
+
             if (_args.length === 0) {
               _args[0] = {};
             }
 
-            if (_args.length === 1 && typeof _args[0] !== 'function') {
+            if ((_args[1] && _args[1].metadata) && Array.isArray(_args[1].metadata)) {
+              const inputMetadata = _args[1].metadata;
+              inputMetadata.forEach((iMeta) => {
+                if (metadata.get(iMeta[0])) {
+                  metadata.add(...iMeta);
+                } else {
+                  metadata.set(...iMeta);
+                }
+              });
+              _args[1] = metadata;
+            }
+
+            if ((_args.length > 0 && _args.length <= 2) && typeof _args[0] !== 'function') {
               // wrap with promise if callback is not a function
               return new Promise((resolve, reject) => {
-                serviceClient[fnName](_args[0], (err, response) => {
+                serviceClient[fnName](_args[0], metadata, (err, response) => {
                   if (err) {
                     const _err = err;
                     const errDetails = {
@@ -81,7 +96,7 @@ class RPCClient extends RPCService {
                 });
               });
             }
-            return serviceClient[fnName](...args);
+            return serviceClient[fnName](..._args);
           };
         });
         // map functions
