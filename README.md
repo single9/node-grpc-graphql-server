@@ -204,7 +204,7 @@ If you want to add metadata to your gRPC call, just pass `metadata` to the funct
   ]
 }
 ```
-### Add Metadata to Client
+#### Add Metadata to Client
 
 ```js
 // call with callback and metadata
