@@ -9,5 +9,6 @@ module.exports = {
   RPCService,
   Controller,
   RPCClient,
+  /** @type {grpc} */
   grpc,
 };
