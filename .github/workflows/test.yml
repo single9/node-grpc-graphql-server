@@ -18,3 +18,16 @@ jobs:
           node-version: 12
       - run: npm install -D
       - run: npm test
+
+  publish-npm:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v1
+        with:
+          node-version: 12
+          registry-url: https://registry.npmjs.org/
+      - run: npm publish --tag next
+        env:
+          NODE_AUTH_TOKEN: ${{secrets.npm_token}}
