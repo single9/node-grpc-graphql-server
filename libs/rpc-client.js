@@ -53,29 +53,27 @@ class RPCClient extends RPCService {
           newFunctions[fnName] = (...args) => {
             // ensure passing an object to function. Because gRPC need.
             const _args = args;
+            const firstArg = _args.shift() || {};
+
+            if (typeof firstArg === 'function') {
+              return serviceClient[fnName]({}, firstArg);
+            }
+
             // add metadata
             const metadata = new grpc.Metadata();
-
-            if (_args.length === 0) {
-              _args[0] = {};
-            }
-
-            if ((_args[1] && _args[1].metadata) && Array.isArray(_args[1].metadata)) {
-              const inputMetadata = _args[1].metadata;
+            if ((_args[0] && _args[0].metadata) && Array.isArray(_args[0].metadata)) {
+              const inputMetadata = _args[0].metadata;
               inputMetadata.forEach((iMeta) => {
-                if (metadata.get(iMeta[0])) {
-                  metadata.add(...iMeta);
-                } else {
-                  metadata.set(...iMeta);
-                }
+                metadata.set(...iMeta);
               });
-              _args[1] = metadata;
+              _args[0] = metadata;
             }
 
-            if ((_args.length > 0 && _args.length <= 2) && typeof _args[0] !== 'function') {
+            const newArgs = [firstArg, ..._args];
+            if (typeof newArgs[(newArgs.length - 1)] !== 'function') {
               // wrap with promise if callback is not a function
               return new Promise((resolve, reject) => {
-                serviceClient[fnName](_args[0], metadata, (err, response) => {
+                serviceClient[fnName](firstArg, metadata, (err, response) => {
                   if (err) {
                     const _err = err;
                     const errDetails = {
@@ -96,7 +94,7 @@ class RPCClient extends RPCService {
                 });
               });
             }
-            return serviceClient[fnName](..._args);
+            return serviceClient[fnName](...newArgs);
           };
         });
         // map functions
