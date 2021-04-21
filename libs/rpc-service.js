@@ -14,7 +14,7 @@ class RPCService extends EventEmitter {
    * @param {protoLoader.Options}          opts
    */
   constructor({
-    grpcServer, protoFile, packages, graphql,
+    grpcServer, protoFile, packages, graphql, addService,
   }, opts) {
     super();
 
@@ -39,6 +39,7 @@ class RPCService extends EventEmitter {
     /** @type {gRPCServiceClients} */
     this.clients = {};
     this.grpcServer = grpcServer;
+    this.addService = addService;
     /** @type {Object<string, grpc.GrpcObject|grpc.Client|grpc.ProtobufMessage>} */
     this.packageObject = {};
     this.graphql = graphql;
@@ -75,6 +76,13 @@ class RPCService extends EventEmitter {
         pack.services.forEach((service) => {
           this.grpcServer.addService(packageObject[service.name].service, service.implementation);
         });
+
+        // add additional service that is not defined in the package
+        if (this.addService) {
+          this.addService.forEach((item) => {
+            this.grpcServer.addService(item.service, item.implementation);
+          });
+        }
       } else {
         throw new Error('Unable to initialize gRPC server');
       }
@@ -127,10 +135,11 @@ module.exports = RPCService;
 
 /**
  * @typedef {object} RPCServiceConstructorParams
- * @property {grpc.Server}          [grpcServer]  gRPC Server instance
- * @property {string|string[]}      protoFile     gRPC protobuf files
- * @property {RPCServicePackages[]} packages      packages
- * @property {boolean|ParamGraphql} [graphql]     graphql configuration
+ * @property {string|string[]}          protoFile     gRPC protobuf files
+ * @property {RPCServicePackages[]}     packages      packages
+ * @property {grpc.Server}              [grpcServer]  gRPC Server instance
+ * @property {boolean|ParamGraphql}     [graphql]     graphql configuration
+ * @property {ParamAddService[]}        [addService]
  */
 
 /**
@@ -171,4 +180,12 @@ module.exports = RPCService;
  * @callback CallFunctionCallback
  * @param {Error} err               Error Message
  * @param {any}   responseMessage   Response Message
+ */
+
+/**
+ * Add service that is not defined in the package
+ *
+ * @typedef {object} ParamAddService
+ * @property {grpc.ServiceDefinition} service
+ * @property {grpc.UntypedServiceImplementation} implementation
  */
