@@ -52,6 +52,13 @@ class Hello extends Controller {
       },
     }, callback);
   }
+
+  SayHelloWithGender(call, callback) {
+    return this.response({
+      gender: call.request.gender,
+      message: `Hello ${call.request.name}`
+    }, callback);
+  }
 }
 
 module.exports = Hello;
