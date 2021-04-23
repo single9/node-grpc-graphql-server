@@ -17,6 +17,10 @@ const tmplCustomInput = `input {{TypeName}} {
   {{TypeDesc}}
 }\n`;
 
+const tmplEnumType = `enum {{TypeName}} {
+  {{TypeDesc}}
+}\n`;
+
 /**
  * Generate function description schema with GraphQL language
  *
@@ -27,9 +31,12 @@ function genGqlFunctionDescribe(functions) {
   functions.forEach((fn) => {
     let { requestParams } = fn;
     const { name, responseType } = fn;
+
     requestParams = requestParams && requestParams.map((param) => `${param.name}: ${(param.required && `${param.type}!`) || param.type}`);
+
+    const fieldName = `${name}${(requestParams && `(${requestParams.join(',')})`) || ''}`;
     fnDesc.push(
-      `${name} ${(requestParams && `(${requestParams.join(',')})`) || ''}: ${responseType}`,
+      (responseType && `${fieldName}: ${responseType}`) || `${fieldName}`,
     );
   });
 
@@ -61,11 +68,13 @@ function genGqlType(types) {
   const gqlTypes = [];
 
   types.forEach((type) => {
-    const { name, functions } = type;
+    const {
+      isInput, isEnum, name, functions,
+    } = type;
     const typeDesc = genGqlFunctionDescribe(functions);
-    const customType = ((type.isInput && tmplCustomInput) || tmplCustomType)
+    const customType = ((isInput && tmplCustomInput) || (isEnum && tmplEnumType) || tmplCustomType)
       .replace('{{TypeName}}', name)
-      .replace('{{TypeDesc}}', typeDesc);
+      .replace('{{TypeDesc}}', `${typeDesc}`);
 
     gqlTypes.push(customType);
   });
@@ -85,8 +94,9 @@ function converter(packageObjects, configs) {
   const gqlPackageRoot = [];
   let gqlTypes = '';
 
-  function typeConverter(packageObj, protobufMessageName, isInput = false) {
+  function typeConverter(packageObj, protobufMessageName, opts = {}) {
     let result = '';
+    const { isInput = false, isEnum = false } = opts;
     const protobufMessage = packageObj[protobufMessageName];
 
     if (!protobufMessage) return '';
@@ -94,16 +104,45 @@ function converter(packageObjects, configs) {
     const messageType = protobufMessage.type;
     const typeField = messageType.field;
     const typeName = messageType.name;
-    const functions = typeField.map((field) => ({
+    const functions = (typeField && typeField.map((field) => ({
       name: field.name,
       responseType: toGqlTypes(field),
-    }));
+    }))) || (messageType.value && messageType.value.map((val) => ({
+      name: val.name,
+    })));
+
     const __messageType = typeField && typeField.filter((field) => field.type === 'TYPE_MESSAGE');
+    const __enumType = typeField && typeField.filter((field) => field.type === 'TYPE_ENUM');
+
+    // console.log(messageType, messageType.enumType);
 
     if (__messageType) {
       for (let i = 0; i < __messageType.length; i++) {
         const messageItem = __messageType[i];
-        result += typeConverter(packageObj, messageItem.typeName, isInput);
+        result += typeConverter(packageObj, messageItem.typeName, { isInput });
+      }
+    }
+
+    if (__enumType) {
+      for (let i = 0; i < __enumType.length; i++) {
+        const messageItem = __enumType[i];
+        result += typeConverter(packageObj, messageItem.typeName, { isEnum: true });
+      }
+    }
+
+    if (messageType.enumType) {
+      for (let i = 0; i < messageType.enumType.length; i++) {
+        const enumItem = messageType.enumType[i];
+        const enumType = genGqlType([
+          {
+            isEnum: true,
+            name: enumItem.name,
+            functions: (enumItem.value && enumItem.value.map((val) => ({
+              name: val.name,
+            }))),
+          },
+        ]);
+        result += enumType;
       }
     }
 
@@ -111,6 +150,7 @@ function converter(packageObjects, configs) {
       result += genGqlType([
         {
           isInput,
+          isEnum,
           name: messageType.name,
           functions,
         },
@@ -203,7 +243,7 @@ function converter(packageObjects, configs) {
         });
 
         // req (input) type
-        gqlTypes += typeConverter(packageObj, requestType.name, true);
+        gqlTypes += typeConverter(packageObj, requestType.name, { isInput: true });
         // res
         gqlTypes += typeConverter(packageObj, responseType.name);
       }
