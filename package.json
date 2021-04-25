@@ -7,6 +7,7 @@
   "scripts": {
     "test": "mocha",
     "lint": "eslint --fix .",
+    "lint:fix": "eslint --fix",
     "prepack": "tsc"
   },
   "keywords": [
