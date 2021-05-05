@@ -1,6 +1,8 @@
 const fs = require('fs');
 const path = require('path');
+const { spawnSync } = require('child_process');
 
+const grpcTools = `${process.cwd()}/node_modules/grpc-tools/bin/protoc.js`;
 const allowResolverType = [
   'query',
   'mutate',
@@ -110,6 +112,43 @@ function readProtofiles(protoFilePath) {
   return readDir(protoFilePath, '.proto');
 }
 
+/**
+ * Convert protobuf files into gRPC code
+ *
+ * @param {string} protoFilePath Path of protibufs file
+ * @param {*}      outputDir     Path of output directory
+ * @returns
+ */
+function genGrpcJs(protoFilePath, outputDir) {
+  const isGrpcToolsExists = fs.existsSync(grpcTools);
+  const isOutputDirExists = fs.existsSync(outputDir);
+
+  if (!protoFilePath) throw new Error('protoFilePath is required');
+  if (!isGrpcToolsExists) {
+    console.warn('WARNING: `grpc-tools` is not intalled. I cannot convert your protobufs to grpc js module.');
+    return undefined;
+  }
+
+  if (!isOutputDirExists) {
+    fs.mkdirSync(outputDir);
+  }
+
+  const files = readDir(protoFilePath, '.proto');
+  const args = [
+    `--proto_path=${protoFilePath}`,
+    `--js_out=import_style=commonjs,binary:${outputDir}`,
+    `--grpc_out=grpc_js:${outputDir}`,
+    ...files,
+  ];
+  const tools = spawnSync(grpcTools, args);
+
+  if (tools.stderr && tools.stderr.length > 0) {
+    throw new Error(tools.stderr.toString());
+  }
+
+  return readDir(outputDir, '.js');
+}
+
 module.exports = {
   recursiveGetPackage,
   replacePackageName,
@@ -117,4 +156,5 @@ module.exports = {
   genResolverType,
   genResolvers,
   readDir,
+  genGrpcJs,
 };
