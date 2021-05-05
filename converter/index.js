@@ -114,8 +114,6 @@ function converter(packageObjects, configs) {
     const __messageType = typeField && typeField.filter((field) => field.type === 'TYPE_MESSAGE');
     const __enumType = typeField && typeField.filter((field) => field.type === 'TYPE_ENUM');
 
-    // console.log(messageType, messageType.enumType);
-
     if (__messageType) {
       for (let i = 0; i < __messageType.length; i++) {
         const messageItem = __messageType[i];
