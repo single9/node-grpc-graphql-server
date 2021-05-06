@@ -13,17 +13,16 @@ class RPCServer extends EventEmitter {
    * @param {ServerConstructorParams} param0
    */
   constructor({
-    protoFile, ip = '0.0.0.0', port = 50051, creds, graphql, packages, logger, addService,
+    ip = '0.0.0.0', port = 50051, creds, graphql, logger, grpc: grpcParams,
   }) {
     super();
 
+    const _grpcParams = { ...grpcParams, server: new grpc.Server() };
+
     this.gqlServer = undefined;
     this.rpcService = new RPCService({
-      protoFile,
-      grpcServer: new grpc.Server(),
-      packages,
+      grpc: _grpcParams,
       graphql,
-      addService,
     });
 
     this.rpcService.grpcServer.bindAsync(`${ip}:${port}`, creds || grpc.ServerCredentials.createInsecure(), (err, grpcPort) => {
@@ -126,9 +125,9 @@ module.exports = RPCServer;
  * @typedef  {object} ServerConstructorParams
  * @property {string}                        ip
  * @property {number}                        port
- * @property {RPCService.RPCServicePackages} packages
- * @property {*}                             logger         Logger for GraphQL server
- * @property {RPCService.ParamAddService}    [addService]
+ * @property {RPCService.RPCServicePackages}   packages
+ * @property {RPCService.RPCServiceGrpcParams} grpc
+ * @property {*}                               logger         Logger for GraphQL server
  * @property {GraphqlProperty|boolean}       [graphql]
  * @property {grpc.ServerCredentials}        [creds]
  * @property {string|string[]}               [protoFile]

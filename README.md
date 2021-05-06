@@ -6,6 +6,16 @@
 
     npm install express @grpc/proto-loader apollo-server-express grpc-graphql-server
 
+### gRPC JS runtime library
+
+Install [grpc-tools](https://github.com/grpc/grpc-node/tree/master/packages/grpc-tools) to generates gRPC JS runtime library
+
+    npm i -D grpc-tools
+
+And install [google-protobuf](https://www.npmjs.com/package/google-protobuf) for google's protobuf runtime library.
+
+    npm i google-protobuf
+
 ## Usage
 
 ### Server
@@ -121,10 +131,12 @@ packages can also be like this:
 ```js
 const rpcServer = new RPCServer({
   ...
-  packages: {
-    helloworld: { // package name
-      Greeter: {  // service name
-        implementation: methods.hello, // implementation
+  grpc: {
+    packages: {
+      helloworld: { // package name
+        Greeter: {  // service name
+          implementation: methods.hello, // implementation
+        },
       },
     },
   },
@@ -178,7 +190,7 @@ main();
 packages can also be like this:
 
 ```js
-const rpcServer = new RPCClient({
+const rpcClient = new RPCClient({
   ...
   packages: {
     helloworld: { // package name
@@ -341,18 +353,20 @@ const rpcServer = new RPCServer({
     schemaPath: path.join(__dirname, "./schema"),
     resolverPath: path.join(__dirname, "./controllers/graphql"),
   },
-  packages: [
-    {
-      name: "helloworld",
-      services: [
-        {
-          name: "Greeter",
-          implementation: methods.hello,
-          mutate: false,
-        },
-      ],
-    },
-  ],
+  grpc: {
+    packages: [
+      {
+        name: "helloworld",
+        services: [
+          {
+            name: "Greeter",
+            implementation: methods.hello,
+            mutate: false,
+          },
+        ],
+      },
+    ],
+  },
 });
 ```
 
@@ -412,4 +426,91 @@ rpcClient['topname_subname_v1'].<service_name>.method({ a: 1 }, function (err, r
 });
 
 await rpcClient['topname_subname_v1'].<service_name>.method({ a: 1 });
+```
+
+# Generate gRPC JS runtime library
+
+**Since Version 0.4.x**
+
+**NOTE:** GraphQL and generated gRPC runtime library cannot be used at the same time.Maybe one day I will found a better way to do.
+
+If you want to use generated js runtime library for server side, you should install `grpc-tools` and run the command below:
+
+    ./node_modules/grpc-graphql-server/bin/index.js init <proto_files_dir> <grpc_js_out_dir>
+
+e.g.
+
+    ./node_modules/grpc-graphql-server/bin/index.js ./protos/ ./grpc
+
+## Server
+
+```js
+const rpcServer = new RPCServer({
+  grpc: {
+    protoFile: `${__dirname}/protos/`,
+    // Add this to read the generated code
+    generatedCode: {
+      outDir: `${__dirname}/grpc-pb`,
+    },
+    packages: {
+      helloworld: {
+        Greeter: {
+          implementation: Hello,
+        },
+      },
+      calculator: {
+        Simple: {
+          implementation: Calculator,
+        },
+        Complex: {
+          implementation: Calculator,
+        }
+      },
+    },
+  },
+});
+```
+
+You can see details on `example/generated-grpc-code`
+
+# Migration from v0.3.x
+
+## gRPC
+
+We move the grpc parameters form constructor root to `grpc` object. This change only affect `RPCServer`.
+
+**v0.3.x**
+
+```js
+const rpcServer = new RPCServer({
+  packages: [
+    {
+      name: "helloworld",
+      services: [
+        {
+          name: "Greeter",
+        },
+      ],
+    },
+  ],
+});
+```
+
+**v0.4.x**
+
+```js
+const rpcServer = new RPCServer({
+  grpc: { // we move it inside this object
+    packages: [
+      {
+        name: "helloworld",
+        services: [
+          {
+            name: "Greeter",
+          },
+        ],
+      },
+    ],
+  },
+});
 ```

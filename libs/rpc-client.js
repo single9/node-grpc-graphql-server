@@ -1,5 +1,4 @@
 const grpc = require('@grpc/grpc-js');
-const grpcToGraphQL = require('../converter/index.js');
 const { recursiveGetPackage, replacePackageName } = require('./tools.js');
 const RPCService = require('./rpc-service.js');
 
@@ -10,7 +9,7 @@ class RPCClient extends RPCService {
    * @param {protoLoader.Options}          opts
    */
   constructor({ protoFile, packages, originalClass }, opts) {
-    super({ protoFile, packages }, opts);
+    super({ grpc: { protoFile, packages } }, opts);
 
     if (!originalClass) {
       return this.clients;
@@ -22,10 +21,6 @@ class RPCClient extends RPCService {
     if (Array.isArray(this.packages) === false) throw new Error('Unable to initialize');
     // load definitions from packages
     const packageDefinition = grpc.loadPackageDefinition(this.packageDefinition);
-    if (this.grpcServer
-      && (this.graphql === true || (this.graphql && this.graphql.enable === true))) {
-      this.gqlSchema = grpcToGraphQL(packageDefinition, this.packages);
-    }
 
     this.packages.forEach((pack) => {
       const packNames = pack.name.split('.');

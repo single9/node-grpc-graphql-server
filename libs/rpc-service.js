@@ -1,11 +1,12 @@
+/* eslint-disable global-require */
 const grpc = require('@grpc/grpc-js');
 const fs = require('fs');
 const { EventEmitter } = require('events');
 const protoLoader = require('@grpc/proto-loader');
 const grpcToGraphQL = require('../converter/index.js');
-const { recursiveGetPackage, replacePackageName, readProtofiles } = require('./tools.js');
-
-const { RPC_CONFS = `${process.cwd()}/conf/rpc` } = process.env;
+const {
+  recursiveGetPackage, replacePackageName, readProtofiles, genGrpcJs, getGrpcJsFiles,
+} = require('./tools.js');
 
 class RPCService extends EventEmitter {
   /**
@@ -14,16 +15,64 @@ class RPCService extends EventEmitter {
    * @param {protoLoader.Options}          opts
    */
   constructor({
-    grpcServer, protoFile, packages, graphql, addService,
+    grpc: grpcParams, graphql,
   }, opts) {
     super();
 
+    const {
+      server: grpcServer, protoFile, packages, extServices, generatedCode,
+    } = grpcParams;
+
+    this.extServices = extServices || [];
+    this.packages = packages;
+    /** @type {gRPCServiceClients} */
+    this.clients = {};
+    this.grpcServer = grpcServer;
+    /** @type {Object<string, grpc.GrpcObject|grpc.Client|grpc.ProtobufMessage>} */
+    this.packageObject = {};
+    this.graphql = graphql;
+
     let _protoFile = protoFile;
+
+    if (graphql && generatedCode) {
+      throw new Error('GraphQL and generated gRPC code cannot be used at the same time.');
+    }
 
     if (protoFile && (!Array.isArray(protoFile) && fs.statSync(protoFile).isDirectory())) {
       _protoFile = readProtofiles(protoFile);
+      // generate grpc js code
+      if (!graphql && generatedCode) {
+        let grpcCodeFiles;
+
+        if (!generatedCode.outDir) throw new Error('outDir is required');
+        if (!packages) {
+          grpcCodeFiles = genGrpcJs(protoFile, generatedCode.outDir);
+
+          // define generated service
+          this.generatedGrpcService = {};
+          // require all generated grpc js module
+          grpcCodeFiles.services.forEach((grpcFile) => {
+          // eslint-disable-next-line import/no-dynamic-require
+            const tmpService = require(grpcFile);
+            this.generatedGrpcService = Object.assign(this.generatedGrpcService, tmpService);
+          });
+          return undefined;
+        }
+
+        grpcCodeFiles = getGrpcJsFiles(generatedCode.outDir);
+        // define generated service
+        this.generatedGrpcService = {};
+        // require all generated grpc js module
+        grpcCodeFiles.services.forEach((grpcFile) => {
+          // eslint-disable-next-line import/no-dynamic-require
+          const tmpService = require(grpcFile);
+          this.generatedGrpcService = Object.assign(this.generatedGrpcService, tmpService);
+        });
+      }
     } else if (!protoFile) {
-      _protoFile = readProtofiles(RPC_CONFS);
+      throw new Error('No proto file provided');
+    } else {
+      throw new Error('The provided proto file format is invalid');
     }
 
     // load protobuf
@@ -35,20 +84,13 @@ class RPCService extends EventEmitter {
       oneofs: true,
     });
 
-    this.packages = packages;
-    /** @type {gRPCServiceClients} */
-    this.clients = {};
-    this.grpcServer = grpcServer;
-    this.addService = addService;
-    /** @type {Object<string, grpc.GrpcObject|grpc.Client|grpc.ProtobufMessage>} */
-    this.packageObject = {};
-    this.graphql = graphql;
-
     if (packages) {
       // map object to array
       this.__init_packages_mapping();
       // do initialize
       this.init();
+    } else {
+      throw new Error('No packages definition provided');
     }
   }
 
@@ -57,10 +99,17 @@ class RPCService extends EventEmitter {
    */
   init() {
     // main process
-    if (Array.isArray(this.packages) === false) throw new Error('Unable to initialize');
+    if (this.graphql && Array.isArray(this.packages) === false) throw new Error('Unable to initialize');
     // load definitions from packages
-    const packageDefinition = grpc.loadPackageDefinition(this.packageDefinition);
-    if (this.grpcServer
+    let packageDefinition;
+
+    if (this.generatedGrpcService) {
+      packageDefinition = grpc.loadPackageDefinition(this.generatedGrpcService);
+    } else {
+      packageDefinition = grpc.loadPackageDefinition(this.packageDefinition);
+    }
+
+    if (this.grpcServer && !(this.generatedGrpcService)
       && (this.graphql === true || (this.graphql && this.graphql.enable === true))) {
       this.gqlSchema = grpcToGraphQL(packageDefinition, this.packages);
     }
@@ -73,13 +122,16 @@ class RPCService extends EventEmitter {
 
       if (this.grpcServer) {
         // gRPC server mode
+        // If service implementation is missing, give it an empty object.
         pack.services.forEach((service) => {
-          this.grpcServer.addService(packageObject[service.name].service, service.implementation);
+          this.grpcServer.addService(
+            packageObject[service.name].service, (service.implementation || Object.create({})),
+          );
         });
 
         // add additional service that is not defined in the package
-        if (this.addService) {
-          this.addService.forEach((item) => {
+        if (this.extServices) {
+          this.extServices.forEach((item) => {
             this.grpcServer.addService(item.service, item.implementation);
           });
         }
@@ -135,11 +187,23 @@ module.exports = RPCService;
 
 /**
  * @typedef {object} RPCServiceConstructorParams
+ * @property {RPCServiceGrpcParams}     grpc          gRPC params
+ * @property {boolean|ParamGraphql}     [graphql]     graphql configuration
+ */
+
+/**
+ * @typedef {object} RPCServiceGrpcParams
  * @property {string|string[]}          protoFile     gRPC protobuf files
  * @property {RPCServicePackages[]}     packages      packages
- * @property {grpc.Server}              [grpcServer]  gRPC Server instance
- * @property {boolean|ParamGraphql}     [graphql]     graphql configuration
- * @property {ParamAddService[]}        [addService]
+ * @property {grpc.Server}              [server]      gRPC Server instance
+ * @property {ParamExtService[]}        [extServices]   External service
+ * @property {GrpcJsOutputParams}       [generatedCode] If set, generate the gRPC JS code
+ *                                                     and use it as grpc server definitions
+ */
+
+/**
+ * @typedef {object} GrpcJsOutputParams
+ * @property {string} outDir          gRPC JS code output directory
  */
 
 /**
@@ -185,7 +249,7 @@ module.exports = RPCService;
 /**
  * Add service that is not defined in the package
  *
- * @typedef {object} ParamAddService
+ * @typedef {object} ParamExtService
  * @property {grpc.ServiceDefinition} service
  * @property {grpc.UntypedServiceImplementation} implementation
  */
