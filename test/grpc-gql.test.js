@@ -5,7 +5,9 @@ const { RPCServer, RPCClient } = require('../index.js');
 const Hello = require('../examples/helloworld/controllers/helloworld.js');
 
 describe('Test gRPC-GraphQL Server', () => {
+  /** @type {RPCServer} */
   let rpcServer;
+  /** @type {RPCClient} */
   let rpcClient;
   let server;
 
@@ -112,7 +114,7 @@ describe('Test gRPC-GraphQL Server', () => {
   });
 
   after(() => {
-    rpcServer.rpcService.grpcServer.forceShutdown();
+    rpcServer.forceShutdown();
     server.close();
   });
 });

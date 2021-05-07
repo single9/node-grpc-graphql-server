@@ -32,6 +32,17 @@ class RPCServer extends EventEmitter {
       this.emit('grpc_server_started', { ip, port: grpcPort });
     });
 
+    this.forceShutdown = () => this.rpcService.grpcServer.forceShutdown();
+    this.tryShutdown = () => new Promise((resolve, reject) => {
+      this.rpcService.grpcServer.tryShutdown((err) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+        resolve();
+      });
+    });
+
     // GraphQL server is not running by default. Set `graphql` to enabled.
     if ((graphql === undefined) || ((typeof graphql === 'boolean') && graphql !== true) || (typeof graphql === 'object' && graphql.enable !== true)) {
       return this;
