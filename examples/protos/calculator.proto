@@ -14,7 +14,7 @@ service Complex {
 }
 
 message OneDoubleRequest {
-  required double x = 1;
+  double x = 1;
 }
 
 message TwoInt32Request {
@@ -53,5 +53,5 @@ message BoolRequest {
 
 // The response message containing the greetings
 message CalculatorResponse {
-  required double result = 1;
+  double result = 1;
 }

@@ -1,0 +1,15 @@
+{
+  "include": [
+    "./index.js",
+    "./libs/**/*.js",
+    "./converter/**/*.js"
+  ],
+
+  "compilerOptions": {
+    "allowJs": true,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "esModuleInterop": true,
+    "outDir": "types"
+  }
+}

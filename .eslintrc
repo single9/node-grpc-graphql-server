@@ -1,32 +1,24 @@
 {
-  "rules": {
-    "indent": [
-        "error",
-        2,
-        {
-          "SwitchCase": 1
-        }
-    ],
-    "linebreak-style": [
-        "error",
-        "unix"
-    ],
-    "quotes": [
-        "warn",
-        "single"
-    ],
-    "semi": [
-        "error",
-        "always"
-    ],
-    "max-len": "off",
-    "one-var": "off",
-    "no-unused-vars": "warn",
-    "no-console": "off",
-    "space-before-function-paren": "off"
+  "env": {
+    "commonjs": true,
+    "es6": true,
+    "node": true
   },
+  "ignorePatterns": [
+    "test/**/*.js",
+    "examples/**/*.js",
+    "types/**/*.ts"
+  ],
+  "extends": "airbnb-base",
+  "rules": {
+    "no-continue": "off",
+    "no-underscore-dangle": "off",
+    "camelcase": "off",
+    "no-plusplus": "off",
+    "no-console": "off"
+ },
   "parserOptions": {
     "sourceType": "module",
-    "ecmaVersion": 2017
+    "ecmaVersion": 2018
   }
 }

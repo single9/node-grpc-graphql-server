@@ -2,8 +2,11 @@ syntax = "proto3";
 
 package helloworld;
 
+// import "google/protobuf/empty.proto";
+
 service Greeter {
   rpc SayHello (HelloRequest) returns (HelloReply);
+  rpc SayHelloWithGender (HelloRequestWithGender) returns (HelloReplyWithGender);
   rpc SayHelloAgain (HelloRequest) returns (HelloReply);
   rpc SayHelloReturnArray (HelloReturnArrayRequest) returns (HelloReturnArrayReply);
   rpc SayHelloWithName (HelloRequestWithRequired) returns (HelloReply);
@@ -12,7 +15,7 @@ service Greeter {
 }
 
 message Empty {
-  bool _ = 1;
+  bool none = 1;
 }
 
 message HelloRequest {
@@ -33,7 +36,7 @@ message HelloReturnArrayReply_Int {
 }
 
 message HelloRequestWithRequired {
-  required string name = 1;
+  string name = 1;
 }
 
 message HelloReply {
@@ -63,9 +66,24 @@ message NestedReplyC {
   string cname = 1;
   NestedReplyD d = 2;
   repeated int32 anums = 3;
-  required double snums = 4;
+  double snums = 4;
 }
 
 message NestedReplyD {
   string dname = 1;
+}
+
+enum Gender {
+  MALE = 0;
+  FEMALE = 1;
+}
+
+message HelloRequestWithGender {
+  string name = 1;
+  Gender gender = 2;
+}
+
+message HelloReplyWithGender {
+  string message = 1;
+  Gender gender = 2;
 }

@@ -1,31 +1,29 @@
-const grpc = require('grpc');
+/* eslint-disable global-require */
+const grpc = require('@grpc/grpc-js');
 const fs = require('fs');
+const { EventEmitter } = require('events');
 const protoLoader = require('@grpc/proto-loader');
 const grpcToGraphQL = require('../converter/index.js');
-const { recursiveGetPackage, replacePackageName, readProtofiles } = require('./tools.js');
-const { RPC_CONFS = process.cwd() + '/conf/rpc' } = process.env;
+const {
+  recursiveGetPackage, replacePackageName, readProtofiles, genGrpcJs, getGrpcJsFiles,
+} = require('./tools.js');
 
-class RPCService {
+class RPCService extends EventEmitter {
   /**
    * Creates instance of RPC service.
    * @param {RPCServiceConstructorParams}  params
-   * @param {protoLoader.Options}          opts 
+   * @param {protoLoader.Options}          opts
    */
-  constructor({ grpcServer, protoFile, packages, graphql }, opts) {
-    if (protoFile && (!Array.isArray(protoFile) && fs.statSync(protoFile).isDirectory())) {
-      protoFile = readProtofiles(protoFile);
-    } else if (!protoFile) {
-      protoFile = readProtofiles(RPC_CONFS);
-    }
+  constructor({
+    grpc: grpcParams, graphql,
+  }, opts) {
+    super();
 
-    this.packageDefinition = protoLoader.loadSync(protoFile, opts || {
-      keepCase: true,
-      longs: String,
-      enums: String,
-      defaults: true,
-      oneofs: true
-    });
+    const {
+      server: grpcServer, protoFile, packages, extServices, generatedCode,
+    } = grpcParams;
 
+    this.extServices = extServices || [];
     this.packages = packages;
     /** @type {gRPCServiceClients} */
     this.clients = {};
@@ -34,67 +32,131 @@ class RPCService {
     this.packageObject = {};
     this.graphql = graphql;
 
-    if (packages) this.init();
+    let _protoFile = protoFile;
+
+    if (graphql && generatedCode) {
+      throw new Error('GraphQL and generated gRPC code cannot be used at the same time.');
+    }
+
+    if (protoFile && (!Array.isArray(protoFile) && fs.statSync(protoFile).isDirectory())) {
+      _protoFile = readProtofiles(protoFile);
+      // generate grpc js code
+      if (!graphql && generatedCode) {
+        let grpcCodeFiles;
+
+        if (!generatedCode.outDir) throw new Error('outDir is required');
+        if (!packages) {
+          grpcCodeFiles = genGrpcJs(protoFile, generatedCode.outDir);
+
+          // define generated service
+          this.generatedGrpcService = {};
+          // require all generated grpc js module
+          grpcCodeFiles.services.forEach((grpcFile) => {
+          // eslint-disable-next-line import/no-dynamic-require
+            const tmpService = require(grpcFile);
+            this.generatedGrpcService = Object.assign(this.generatedGrpcService, tmpService);
+          });
+          return undefined;
+        }
+
+        grpcCodeFiles = getGrpcJsFiles(generatedCode.outDir);
+        // define generated service
+        this.generatedGrpcService = {};
+        // require all generated grpc js module
+        grpcCodeFiles.services.forEach((grpcFile) => {
+          // eslint-disable-next-line import/no-dynamic-require
+          const tmpService = require(grpcFile);
+          this.generatedGrpcService = Object.assign(this.generatedGrpcService, tmpService);
+        });
+      }
+    } else if (!protoFile) {
+      throw new Error('No proto file provided');
+    }
+
+    // load protobuf
+    this.packageDefinition = protoLoader.loadSync(_protoFile, opts || {
+      keepCase: true,
+      longs: String,
+      enums: String,
+      defaults: true,
+      oneofs: true,
+    });
+
+    if (packages) {
+      // map object to array
+      this.__init_packages_mapping();
+      // do initialize
+      this.init();
+    } else {
+      throw new Error('No packages definition provided');
+    }
   }
 
+  /**
+   * Initialize
+   */
   init() {
-    if (Array.isArray(this.packages)) {
-      const packageDefinition = grpc.loadPackageDefinition(this.packageDefinition);
-      if (this.grpcServer && this.graphql === true) {
-        this.gqlSchema = grpcToGraphQL(packageDefinition, this.packages);
-      }
+    // main process
+    if (this.graphql && Array.isArray(this.packages) === false) throw new Error('Unable to initialize');
+    // load definitions from packages
+    let packageDefinition;
 
-      this.packages.forEach(pack => {
-        const packNames = pack.name.split('.');
-        const packageName = replacePackageName(pack.name);
-        const packageObject = 
-          this.packageObject[packageName] = recursiveGetPackage(packNames, packageDefinition);
+    if (this.generatedGrpcService) {
+      packageDefinition = grpc.loadPackageDefinition(this.generatedGrpcService);
+    } else {
+      packageDefinition = grpc.loadPackageDefinition(this.packageDefinition);
+    }
 
+    if (this.grpcServer && !(this.generatedGrpcService)
+      && (this.graphql === true || (this.graphql && this.graphql.enable === true))) {
+      this.gqlSchema = grpcToGraphQL(packageDefinition, this.packages);
+    }
+
+    this.packages.forEach((pack) => {
+      const packNames = pack.name.split('.');
+      const packageName = replacePackageName(pack.name);
+      const packageObject = recursiveGetPackage(packNames, packageDefinition);
+      this.packageObject[packageName] = packageObject;
+
+      if (this.grpcServer) {
         // gRPC server mode
-        if (this.grpcServer) {
-          pack.services.forEach(service => {
-            this.grpcServer.addService(packageObject[service.name].service, service.implementation);
-          });
-        } else {
-          pack.services.forEach(service => {
-            if (!this.clients[packageName]) {
-              this.clients[packageName] = {};
-            }
-            service.host = service.host || 'localhost';
-            service.port = service.port || '50051';
-            const host = `${service.host}:${service.port}`;
-            const serviceFunctionsKey = Object.keys(packageObject[service.name].service);
-            const serviceClient = new packageObject[service.name](
-              host || 'localhost:50051',
-              service.creds || grpc.credentials.createInsecure()
-            );
-            const newFunctions = Object.assign({}, serviceClient);
-            serviceFunctionsKey.forEach((fnName) => {
-              // Promise the functions
-              newFunctions[fnName] = (...args) => {
-                // ensure passing an object to function. Because gRPC need.
-                if (args.length === 0) {
-                  args[0] = {};
-                }
+        // If service implementation is missing, give it an empty object.
+        pack.services.forEach((service) => {
+          this.grpcServer.addService(
+            packageObject[service.name].service, (service.implementation || Object.create({})),
+          );
+        });
 
-                if (args.length === 1 && typeof args[0] !== 'function') {
-                  return new Promise((resolve, reject) => {
-                    serviceClient[fnName](args[0], (err, response) => {
-                      if (err) return reject(err);
-                      resolve(response);
-                    });
-                  });
-                } else {
-                  return serviceClient[fnName](...args);
-                }
-              };
-            });
-            this.clients[packageName][service.name] = newFunctions;
+        // add additional service that is not defined in the package
+        if (this.extServices) {
+          this.extServices.forEach((item) => {
+            this.grpcServer.addService(item.service, item.implementation);
           });
         }
+      } else {
+        throw new Error('Unable to initialize gRPC server');
+      }
+    });
+  }
+
+  __init_packages_mapping() {
+    if (Array.isArray(this.packages) === false && (typeof this.packages === 'object')) {
+      const newPackages = [];
+      const packageKeys = Object.keys(this.packages);
+      packageKeys.forEach((pack) => {
+        const newServices = [];
+        const servicesKeys = Object.keys(this.packages[pack]);
+        servicesKeys.forEach((service) => {
+          const serviceObj = { ...this.packages[pack][service] };
+          serviceObj.name = service;
+          newServices.push(serviceObj);
+        });
+        newPackages.push({
+          name: pack,
+          services: newServices,
+        });
       });
-    } else {
-      throw new Error('Unable to initialize');
+      this.packages = newPackages;
     }
   }
 }
@@ -103,10 +165,12 @@ module.exports = RPCService;
 
 /**
  * @typedef {object} ServicesDescriptor
- * @property {string}                   name  service name
- * @property {string}                   [host='localhost']  (Client Only) service host (default: 'localhost')
- * @property {number}                   [port=50051]        (Client Only) service port (default: 50051)
- * @property {grpc.ServerCredentials}   [creds=grpc.credentials.createInsecure()]  (Client Only) service server credentials (default: insecure)
+ * @property {string} name  service name
+ * @property {string} [host='localhost']  (Client Only) service host (default: 'localhost')
+ * @property {number} [port=50051]        (Client Only) service port (default: 50051)
+ * @property {grpc.ServerCredentials}   [creds=grpc.credentials.createInsecure()]
+ *                                        (Client Only) service server credentials
+ *                                        (default: insecure)
  * @property {Object<string, function>} implementation      Service implementation (controller)
  * @property {boolean}                  [mutate=false]      (GraphQL mutatiom) Is it can be mutated?
  * @property {boolean}                  [query=true]        (GraphQL query)    Is it can be queried?
@@ -121,9 +185,28 @@ module.exports = RPCService;
 
 /**
  * @typedef {object} RPCServiceConstructorParams
- * @property {grpc.Server}          [grpcServer]  gRPC Server instance
- * @property {string|string[]}      protoFile     gRPC protobuf files
- * @property {RPCServicePackages[]} packages      packages
+ * @property {RPCServiceGrpcParams}     grpc          gRPC params
+ * @property {boolean|ParamGraphql}     [graphql]     graphql configuration
+ */
+
+/**
+ * @typedef {object} RPCServiceGrpcParams
+ * @property {string|string[]}          protoFile     gRPC protobuf files
+ * @property {RPCServicePackages[]}     packages      packages
+ * @property {grpc.Server}              [server]      gRPC Server instance
+ * @property {ParamExtService[]}        [extServices]   External service
+ * @property {GrpcJsOutputParams}       [generatedCode] If set, generate the gRPC JS code
+ *                                                     and use it as grpc server definitions
+ */
+
+/**
+ * @typedef {object} GrpcJsOutputParams
+ * @property {string} outDir          gRPC JS code output directory
+ */
+
+/**
+ * @typedef {object} ParamGraphql
+ * @property {boolean} enable  Enable GraphQL (default: false)
  */
 
 /**
@@ -159,4 +242,12 @@ module.exports = RPCService;
  * @callback CallFunctionCallback
  * @param {Error} err               Error Message
  * @param {any}   responseMessage   Response Message
+ */
+
+/**
+ * Add service that is not defined in the package
+ *
+ * @typedef {object} ParamExtService
+ * @property {grpc.ServiceDefinition} service
+ * @property {grpc.UntypedServiceImplementation} implementation
  */

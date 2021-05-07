@@ -1,5 +1,14 @@
+/**
+ * Finder
+ * @param {[]} types
+ * @param {*} returnType
+ */
+function finder(types, returnType, input) {
+  return types.find((val) => input.indexOf(val) > -1) && returnType;
+}
+
 // Finders
-let typeFinders = [
+const typeFinders = [
   (input) => finder(['INT', 'FIXED'], 'Int', input),
   (input) => finder(['FLOAT', 'DOUBLE'], 'Float', input),
   (input) => finder(['STRING', 'BYTES'], 'String', input),
@@ -7,32 +16,24 @@ let typeFinders = [
 ];
 
 /**
- * Finder
- * @param {[]} types 
- * @param {*} returnType 
- */
-function finder(types, returnType, input) {
-  return types.find((val) => input.indexOf(val) > -1) && returnType;
-}
-
-/**
- * Find type (factory function) 
- * @param {string} input 
+ * Find type (factory function)
+ * @param {string} input
  * @returns {string} Type function (`Number`|`String`|`Boolean`)
  */
 function findType(input) {
   for (let i = 0; i < typeFinders.length; i++) {
-    let typeFinder = typeFinders[i].call(null, input);
+    const typeFinder = typeFinders[i].call(null, input);
     if (typeFinder) return typeFinder;
   }
+  return undefined;
 }
 
 /**
  * Convert protobufType to GraphQL Type
- * @param {TypeField} protobufTypeField 
+ * @param {TypeField} protobufTypeField
  */
 function convertType(protobufTypeField) {
-  const label = protobufTypeField.label;
+  const { label } = protobufTypeField;
   const protobufType = protobufTypeField.type;
   const gqlType = findType(protobufType);
   let myType = gqlType || protobufTypeField.typeName;
@@ -46,6 +47,9 @@ function convertType(protobufTypeField) {
       break;
     case 'LABEL_REQUIRED':
       myType = `${myType}!`;
+      break;
+    default:
+      // do nothing
       break;
   }
   return myType;

@@ -1,5 +1,5 @@
 require('should');
-const grpc = require('grpc');
+const grpc = require('@grpc/grpc-js');
 const protoLoader = require('@grpc/proto-loader');
 const { gql } = require('apollo-server-express');
 const converter = require('../converter');

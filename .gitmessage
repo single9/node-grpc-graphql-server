@@ -1,0 +1,37 @@
+<type>(<scope>): <subject>
+
+# example for commit
+# ```
+# fix(middleware): ensure Range headers adhere more closely to RFC 2616
+# some thing I need more description
+# Fixes #2310
+# ```
+
+# Allow <type> values:
+# - feat (new feature for the user, not a new feature for build script)
+# - fix (bug fix for the user, not a fix to a build script)
+# - docs (changes to the documentation)
+# - style (formatting, missing semi colons, etc; no production code change)
+# - refactor (refactoring production code, eg. renaming a variable)
+# - test (adding missing tests, refactoring tests; no production code change)
+# - chore (updating grunt tasks etc; no production code change)
+
+# Example for <scope>:
+# - init
+# - runner
+# - watcher
+# - config
+# - web-server
+# - proxy
+# - etc.
+
+# Message body
+# - uses the imperative, present tense: “change” not “changed” nor “changes”
+# - includes motivation for the change and contrasts with previous behavior
+
+# Footer message
+# Closed issues should be listed on a separate line in the footer prefixed with "Closes" keyword like this:
+# ```js
+# Closes #234
+# Closes #123, #245, #992 // in the case of multiple issues:
+# ```

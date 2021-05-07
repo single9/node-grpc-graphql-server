@@ -177,3 +177,6 @@ dist
 
 # Local History for Visual Studio Code
 .history/
+
+types
+grpc
