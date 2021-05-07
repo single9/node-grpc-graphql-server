@@ -13,7 +13,7 @@ class RPCServer extends EventEmitter {
    * @param {ServerConstructorParams} param0
    */
   constructor({
-    ip = '0.0.0.0', port = 50051, creds, graphql, logger, grpc: grpcParams,
+    ip = '0.0.0.0', port = 50051, creds, graphql, grpc: grpcParams,
   }) {
     super();
 
@@ -38,7 +38,14 @@ class RPCServer extends EventEmitter {
     }
 
     const {
-      schemaPath, resolverPath, context, formatError, playground, introspection, apolloConfig,
+      schemaPath,
+      resolverPath,
+      context,
+      formatError,
+      playground,
+      introspection,
+      apolloConfig,
+      logger,
     } = graphql;
 
     const rootTypeDefs = `
@@ -127,7 +134,6 @@ module.exports = RPCServer;
  * @property {number}                        port
  * @property {RPCService.RPCServicePackages}   packages
  * @property {RPCService.RPCServiceGrpcParams} grpc
- * @property {*}                               logger         Logger for GraphQL server
  * @property {GraphqlProperty|boolean}       [graphql]
  * @property {grpc.ServerCredentials}        [creds]
  * @property {string|string[]}               [protoFile]
@@ -143,6 +149,7 @@ module.exports = RPCServer;
  * @property  {function}  [context]
  * @property  {function}  [formatError]
  * @property  {object}    [introspection]
+ * @property  {*}         [logger]                   Logger for GraphQL server
  * @property  {boolean|Playground} [playground] Reference:
  *                                              https://www.apollographql.com/docs/apollo-server/testing/graphql-playground/#configuring-playground
  * @property  {ApolloServerExpress.ApolloServerExpressConfig} [apolloConfig]
