@@ -71,8 +71,6 @@ class RPCService extends EventEmitter {
       }
     } else if (!protoFile) {
       throw new Error('No proto file provided');
-    } else {
-      throw new Error('The provided proto file format is invalid');
     }
 
     // load protobuf
