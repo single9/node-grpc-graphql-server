@@ -123,7 +123,7 @@ class RPCService extends EventEmitter {
         // If service implementation is missing, give it an empty object.
         pack.services.forEach((service) => {
           this.grpcServer.addService(
-            packageObject[service.name].service, (service.implementation || Object.create({})),
+            packageObject[service.name].service, (service.implementation || {}),
           );
         });
 
