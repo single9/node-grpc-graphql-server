@@ -15,20 +15,22 @@ describe('Test gRPC-GraphQL Server', () => {
 
   it('should start grpc server', (done) => {
     rpcServer = new RPCServer({
-      port: 50052,
       graphql: true,
-      protoFile: `${__dirname}/../examples/protos/hello.proto`,
-      packages: [
-        {
-          name: 'helloworld',
-          services: [
-            {
-              name: 'Greeter',
-              implementation: methods.hello,
-            },
-          ],
-        },
-      ],
+      port: 50052,
+      grpc: {
+        protoFile: `${__dirname}/../examples/protos/hello.proto`,
+        packages: [
+          {
+            name: 'helloworld',
+            services: [
+              {
+                name: 'Greeter',
+                implementation: methods.hello,
+              },
+            ],
+          },
+        ],
+      },
     });
 
     if (rpcServer.gqlServer) {
