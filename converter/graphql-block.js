@@ -1,12 +1,44 @@
+const { block: gqlBlockType } = require('./graphql-type.js');
+
 const blockType = ['input', 'type', 'enum'];
 
-function blockDataHelper(responseType, params, opts) {
+/**
+ * @param {FieldResponseType} responseType
+ */
+function blockDataHelper(responseType, params) {
+  let _responseType = responseType;
+  const _gqlBlock = _responseType.type;
+  const opts = _responseType;
+
+  // eslint-disable-next-line no-use-before-define
+  if (_gqlBlock instanceof GraphQlBlock === true) {
+    _responseType = _gqlBlock.name;
+  } else {
+    _responseType = _gqlBlock;
+  }
+
+  const repeated = (opts.repeated === true || typeof opts.repeated === 'object') ? opts.repeated : false;
+
   return {
-    responseType,
+    responseType: _responseType,
     params,
-    required: opts.required || false,
-    repeated: opts.repeated || false,
+    repeated,
+    nullable: opts.nullable && opts.nullable === true,
   };
+}
+
+function labelHelper(responseName, fieldData) {
+  let tmp = `${responseName || ''}`;
+
+  if (fieldData.nullable === false) {
+    tmp = `${tmp}!`;
+  }
+
+  if (fieldData.repeated) {
+    tmp = `[${tmp}]${(fieldData.repeated.nullable === false && '!') || ''}`;
+  }
+
+  return tmp;
 }
 
 /**
@@ -30,34 +62,40 @@ class GraphQlBlock {
 
   /**
    * @param {string} name
-   * @param {string} responseType
-   * @param {AddFieldOptions} opts
+   * @param {FieldResponseType} responseType
    */
-  addField(name, responseType, opts = {}) {
+  addField(name, responseType) {
     if (this.fields[name]) throw new Error(`field '${name}' already exists`);
-    if (this.type !== 'enum' && !responseType) throw new Error(`field '${name}' requires response type`);
+    if (this.type !== gqlBlockType.enum && !responseType) throw new Error(`field '${name}' requires response type`);
 
-    this.fields[name] = (this.type === 'enum' && {}) || blockDataHelper(responseType, null, opts);
+    this.fields[name] = (this.type === gqlBlockType.enum && {})
+      || blockDataHelper(responseType, null);
   }
 
   /**
    * @param {string} name
-   * @param {Object.<string, GraphQlBlock>} params
-   * @param {string} responseType
-   * @param {AddFieldOptions} opts
+   * @param {Object.<string, GraphQlParam>} params
+   * @param {FieldResponseType} responseType
    */
-  addFieldWithParams(name, params, responseType, opts = {}) {
+  addFieldWithParams(name, params, responseType) {
     if (this.fields[name]) throw new Error(`field '${name}' already exists`);
-    if ((params instanceof GraphQlBlock) === false) throw new Error('params is not an instance of GraphQlBlock');
-    if (this.type === 'enum') throw new Error('enum is not support params ');
+    // if (this.type === 'enum') throw new Error('enum is not support params ');
 
-    Object.keys(params).forEach((key) => {
-      if ((params[key] instanceof GraphQlBlock) === false) {
-        throw new Error('params is not an instance of GraphQlBlock');
-      }
-    });
+    if (params) {
+      Object.keys(params).forEach((key) => {
+        const gqlBlock = params[key].type;
 
-    this.fields[name] = blockDataHelper(responseType, params, opts);
+        if ((gqlBlock instanceof GraphQlBlock) === false && typeof gqlBlock !== 'string') {
+          throw new TypeError(`params['${key}'] is not an instance of GraphQlBlock or not a type of GraphQL`);
+        }
+
+        if (typeof gqlBlock !== 'string' && gqlBlock.type !== gqlBlockType.input && gqlBlock.type !== gqlBlockType.enum) {
+          throw new TypeError(`params['${key}'] is not input or enum type`);
+        }
+      });
+    }
+
+    this.fields[name] = blockDataHelper(responseType, params);
   }
 
   /**
@@ -90,21 +128,33 @@ class GraphQlBlock {
       const fieldName = fieldKeys[i];
       const fieldData = this.fields[fieldName];
 
-      let responseType = `${fieldData.responseType || ''}`;
+      let fieldParams = '';
+      const responseType = labelHelper(fieldData.responseType, fieldData);
 
-      if (fieldData.repeated) {
-        responseType = `[${responseType}]`;
+      if (fieldData.params) {
+        const { params } = fieldData;
+        const paramsKeys = Object.keys(params);
+
+        for (let j = 0; j < paramsKeys.length; j++) {
+          const param = params[paramsKeys[j]];
+          const paramType = param.type;
+          const tmpParam = labelHelper(paramType.name || paramType, param);
+
+          fieldParams += `${paramsKeys[j]}: ${tmpParam}`;
+          fieldParams += `${((j !== paramsKeys.length - 1) && ', ') || ''}`;
+        }
       }
 
-      if (fieldData.required) {
-        responseType = `${responseType}!`;
-      }
-
-      desc += `  ${fieldName}${(responseType && `: ${responseType}`) || ''} ${((i !== fieldKeys.length - 1) && '\n') || ''}`;
+      desc += `  ${fieldName}${fieldParams && `(${fieldParams})`}${(responseType && `: ${responseType}`) || ''}`;
+      desc += `${((i !== fieldKeys.length - 1) && '\n') || ''}`;
     }
 
     tmp = tmp.replace('<desc>', desc);
     return tmp;
+  }
+
+  listFields() {
+    return Object.keys(this.fields).map((fieldName) => this.fields[fieldName]);
   }
 }
 
@@ -122,13 +172,32 @@ module.exports = GraphQlBlock;
 /**
  * @typedef {object} GraphQlBlockField
  * @property {string} responseType
- * @property {boolean} required
+ * @property {boolean} nullable
  * @property {boolean} repeated
+ * @property {Object.<string, GraphQlParam>} params
+ */
+
+/**
+ * @typedef {object} GraphQlParam
+ * @property {gqlBlockType|GraphQlBlock} type
+ * @property {boolean} [nullable=false]
+ * @property {boolean} [repeated=false]
  */
 
 /**
  * @typedef {object} AddFieldOptions
- * @property {}
- * @property {boolean} [required=false]
- * @property {boolean} [repeated=false]
+ * @property {boolean} [nullable=true]
+ * @property {boolean|RepeatedType} [repeated=false]
+ */
+
+/**
+ * @typedef {object} FieldResponseType
+ * @property {gqlBlockType|GraphQlBlock} type
+ * @property {boolean|RepeatedType} [repeated=false]
+ * @property {boolean} [nullable=true]
+ */
+
+/**
+ * @typedef {object} RepeatedType
+ * @property {boolean} [nullable = true]
  */
