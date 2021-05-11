@@ -13,17 +13,16 @@ class RPCServer extends EventEmitter {
    * @param {ServerConstructorParams} param0
    */
   constructor({
-    protoFile, ip = '0.0.0.0', port = 50051, creds, graphql, packages, logger, addService,
+    ip = '0.0.0.0', port = 50051, creds, graphql, grpc: grpcParams,
   }) {
     super();
 
+    const _grpcParams = { ...grpcParams, server: new grpc.Server() };
+
     this.gqlServer = undefined;
     this.rpcService = new RPCService({
-      protoFile,
-      grpcServer: new grpc.Server(),
-      packages,
+      grpc: _grpcParams,
       graphql,
-      addService,
     });
 
     this.rpcService.grpcServer.bindAsync(`${ip}:${port}`, creds || grpc.ServerCredentials.createInsecure(), (err, grpcPort) => {
@@ -33,26 +32,35 @@ class RPCServer extends EventEmitter {
       this.emit('grpc_server_started', { ip, port: grpcPort });
     });
 
+    this.forceShutdown = () => this.rpcService.grpcServer.forceShutdown();
+    this.tryShutdown = () => new Promise((resolve, reject) => {
+      this.rpcService.grpcServer.tryShutdown((err) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+        resolve();
+      });
+    });
+
     // GraphQL server is not running by default. Set `graphql` to enabled.
     if ((graphql === undefined) || ((typeof graphql === 'boolean') && graphql !== true) || (typeof graphql === 'object' && graphql.enable !== true)) {
       return this;
     }
 
     const {
-      schemaPath, resolverPath, context, formatError, playground, introspection, apolloConfig,
+      schemaPath,
+      resolverPath,
+      context,
+      formatError,
+      playground,
+      introspection,
+      apolloConfig,
+      logger,
     } = graphql;
 
-    const rootTypeDefs = `
-      type Query{
-        _: String
-      }
-      type Mutation {
-        _: String
-      }
-    `;
-
     const auto = (graphql.auto !== undefined) ? graphql.auto : true;
-    const registerTypes = [rootTypeDefs];
+    const registerTypes = [];
     const registerResolvers = [];
 
     if (schemaPath && resolverPath) {
@@ -126,9 +134,8 @@ module.exports = RPCServer;
  * @typedef  {object} ServerConstructorParams
  * @property {string}                        ip
  * @property {number}                        port
- * @property {RPCService.RPCServicePackages} packages
- * @property {*}                             logger         Logger for GraphQL server
- * @property {RPCService.ParamAddService}    [addService]
+ * @property {RPCService.RPCServicePackages}   packages
+ * @property {RPCService.RPCServiceGrpcParams} grpc
  * @property {GraphqlProperty|boolean}       [graphql]
  * @property {grpc.ServerCredentials}        [creds]
  * @property {string|string[]}               [protoFile]
@@ -144,6 +151,7 @@ module.exports = RPCServer;
  * @property  {function}  [context]
  * @property  {function}  [formatError]
  * @property  {object}    [introspection]
+ * @property  {*}         [logger]                   Logger for GraphQL server
  * @property  {boolean|Playground} [playground] Reference:
  *                                              https://www.apollographql.com/docs/apollo-server/testing/graphql-playground/#configuring-playground
  * @property  {ApolloServerExpress.ApolloServerExpressConfig} [apolloConfig]

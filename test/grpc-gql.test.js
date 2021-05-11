@@ -5,7 +5,9 @@ const { RPCServer, RPCClient } = require('../index.js');
 const Hello = require('../examples/helloworld/controllers/helloworld.js');
 
 describe('Test gRPC-GraphQL Server', () => {
+  /** @type {RPCServer} */
   let rpcServer;
+  /** @type {RPCClient} */
   let rpcClient;
   let server;
 
@@ -15,20 +17,22 @@ describe('Test gRPC-GraphQL Server', () => {
 
   it('should start grpc server', (done) => {
     rpcServer = new RPCServer({
-      port: 50052,
       graphql: true,
-      protoFile: `${__dirname}/../examples/protos/hello.proto`,
-      packages: [
-        {
-          name: 'helloworld',
-          services: [
-            {
-              name: 'Greeter',
-              implementation: methods.hello,
-            },
-          ],
-        },
-      ],
+      port: 50052,
+      grpc: {
+        protoFile: `${__dirname}/../examples/protos/hello.proto`,
+        packages: [
+          {
+            name: 'helloworld',
+            services: [
+              {
+                name: 'Greeter',
+                implementation: methods.hello,
+              },
+            ],
+          },
+        ],
+      },
     });
 
     if (rpcServer.gqlServer) {
@@ -110,7 +114,7 @@ describe('Test gRPC-GraphQL Server', () => {
   });
 
   after(() => {
-    rpcServer.rpcService.grpcServer.forceShutdown();
+    rpcServer.forceShutdown();
     server.close();
   });
 });

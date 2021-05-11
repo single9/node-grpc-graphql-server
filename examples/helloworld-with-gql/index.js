@@ -18,11 +18,13 @@ const rpcServer = new RPCServer({
     // }
     // auto: false,
   },
-  protoFile: path.join(__dirname, '../protos/hello.proto'),
-  packages: {
-    helloworld: {
-      Greeter: {
-        implementation: methods.hello,
+  grpc: {
+    protoFile: path.join(__dirname, '../protos/hello.proto'),
+    packages: {
+      helloworld: {
+        Greeter: {
+          implementation: methods.hello,
+        },
       },
     },
   },
