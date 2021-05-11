@@ -96,7 +96,6 @@ function converter(packageObjects, configs) {
     if (messageType.enumType) {
       for (let i = 0; i < messageType.enumType.length; i++) {
         const enumItem = messageType.enumType[i];
-        // typeConverter(packageObj, enumItem.name, { isEnum: true });
         const enumTypeName = `${protobufMessageName}_${enumItem.name}`;
 
         if (!gqlSchema.get(enumTypeName)) {
