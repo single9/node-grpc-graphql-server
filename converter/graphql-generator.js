@@ -19,22 +19,24 @@ class GraphQLGenerator {
 
     this.Query = new GraphQlBlock('type', 'Query', { extend: true });
     this.Mutation = new GraphQlBlock('type', 'Mutation', { extend: true });
-
-    this.addToQuery = (...args) => this.Query.addFieldWithParams(...args);
-    this.addToMutation = (...args) => this.Mutation.addFieldWithParams(...args);
   }
 
   /**
    * @param {string} name
-   * @param {GraphQlBlock} block
-   * @param {GraphQlBlock.AddFieldOptions} [opts]
+   * @param {Object.<string, GraphQlBlock.GraphQlParam>} params
+   * @param {FieldResponseType} responseType
    */
-  addToMutation(name, block, opts = {}) {
-    // TODO: Support params
-    if ((block instanceof GraphQlBlock) === false) throw new Error('Unknown block');
-    if (block.type !== 'type') throw new Error('Unsupport block type');
+  addToQuery(name, params, responseType) {
+    return this.Mutation.addFieldWithParams(name, params, responseType);
+  }
 
-    this.extendQuery.addFieldWithParams(name, block.name, opts);
+  /**
+   * @param {string} name
+   * @param {Object.<string, GraphQlBlock.GraphQlParam>} params
+   * @param {FieldResponseType} responseType
+   */
+  addToMutation(name, params, responseType) {
+    return this.Mutation.addFieldWithParams(name, params, responseType);
   }
 
   /**
