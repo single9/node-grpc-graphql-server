@@ -24,7 +24,7 @@ class GraphQLGenerator {
   /**
    * @param {string} name
    * @param {Object.<string, GraphQlBlock.GraphQlParam>} params
-   * @param {FieldResponseType} responseType
+   * @param {GraphQlBlock.FieldResponseType} responseType
    */
   addToQuery(name, params, responseType) {
     return this.Mutation.addFieldWithParams(name, params, responseType);
@@ -33,7 +33,7 @@ class GraphQLGenerator {
   /**
    * @param {string} name
    * @param {Object.<string, GraphQlBlock.GraphQlParam>} params
-   * @param {FieldResponseType} responseType
+   * @param {GraphQlBlock.FieldResponseType} responseType
    */
   addToMutation(name, params, responseType) {
     return this.Mutation.addFieldWithParams(name, params, responseType);
