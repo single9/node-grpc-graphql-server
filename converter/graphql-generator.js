@@ -65,7 +65,7 @@ class GraphQLGenerator {
    */
   createEnum(name, opts = {}) {
     if (this.blocks[name]) throw new Error(`GraphQlBlock ${name} already exists`);
-    this.blocks[name] = new GraphQlBlock('input', name, opts);
+    this.blocks[name] = new GraphQlBlock('enum', name, opts);
     return this.blocks[name];
   }
 
