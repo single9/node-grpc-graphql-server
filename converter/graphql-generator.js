@@ -27,7 +27,7 @@ class GraphQLGenerator {
    * @param {GraphQlBlock.FieldResponseType} responseType
    */
   addToQuery(name, params, responseType) {
-    return this.Mutation.addFieldWithParams(name, params, responseType);
+    return this.Query.addFieldWithParams(name, params, responseType);
   }
 
   /**
