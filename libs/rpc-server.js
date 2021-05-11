@@ -59,17 +59,8 @@ class RPCServer extends EventEmitter {
       logger,
     } = graphql;
 
-    const rootTypeDefs = `
-      type Query{
-        _: String
-      }
-      type Mutation {
-        _: String
-      }
-    `;
-
     const auto = (graphql.auto !== undefined) ? graphql.auto : true;
-    const registerTypes = [rootTypeDefs];
+    const registerTypes = [];
     const registerResolvers = [];
 
     if (schemaPath && resolverPath) {
