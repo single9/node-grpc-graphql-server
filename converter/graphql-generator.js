@@ -1,4 +1,4 @@
-const { type: gqlType } = require('./graphql-type.js');
+const { type: gqlType, block: gqlBlockType } = require('./graphql-type.js');
 const GraphQlBlock = require('./graphql-block.js');
 
 const rootQuery = new GraphQlBlock('type', 'Query');
@@ -45,7 +45,7 @@ class GraphQLGenerator {
    */
   createType(name, opts = {}) {
     if (this.blocks[name]) throw new Error(`GraphQlBlock ${name} already exists`);
-    this.blocks[name] = new GraphQlBlock('type', name, opts);
+    this.blocks[name] = new GraphQlBlock(gqlBlockType.type, name, opts);
     return this.blocks[name];
   }
 
@@ -55,7 +55,7 @@ class GraphQLGenerator {
    */
   createInput(name, opts = {}) {
     if (this.blocks[name]) throw new Error(`GraphQlBlock ${name} already exists`);
-    this.blocks[name] = new GraphQlBlock('input', name, opts);
+    this.blocks[name] = new GraphQlBlock(gqlBlockType.input, name, opts);
     return this.blocks[name];
   }
 
@@ -65,7 +65,7 @@ class GraphQLGenerator {
    */
   createEnum(name, opts = {}) {
     if (this.blocks[name]) throw new Error(`GraphQlBlock ${name} already exists`);
-    this.blocks[name] = new GraphQlBlock('enum', name, opts);
+    this.blocks[name] = new GraphQlBlock(gqlBlockType.enum, name, opts);
     return this.blocks[name];
   }
 
