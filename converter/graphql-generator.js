@@ -43,7 +43,7 @@ class GraphQLGenerator {
    * @param {string} name
    * @param {GraphQlBlock.GraphQlBlockOptions} opts
    */
-  addType(name, opts = {}) {
+  createType(name, opts = {}) {
     if (this.blocks[name]) throw new Error(`GraphQlBlock ${name} already exists`);
     this.blocks[name] = new GraphQlBlock('type', name, opts);
     return this.blocks[name];
@@ -53,7 +53,7 @@ class GraphQLGenerator {
    * @param {string} name
    * @param {GraphQlBlock.GraphQlBlockOptions} opts
    */
-  addInput(name, opts = {}) {
+  createInput(name, opts = {}) {
     if (this.blocks[name]) throw new Error(`GraphQlBlock ${name} already exists`);
     this.blocks[name] = new GraphQlBlock('input', name, opts);
     return this.blocks[name];
@@ -63,9 +63,13 @@ class GraphQLGenerator {
    * @param {string} name
    * @param {GraphQlBlock.GraphQlBlockOptions} opts
    */
-  addEnum(name, opts = {}) {
+  createEnum(name, opts = {}) {
     if (this.blocks[name]) throw new Error(`GraphQlBlock ${name} already exists`);
     this.blocks[name] = new GraphQlBlock('input', name, opts);
+    return this.blocks[name];
+  }
+
+  get(name) {
     return this.blocks[name];
   }
 
