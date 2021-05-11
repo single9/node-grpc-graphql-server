@@ -4,6 +4,7 @@ const blockType = ['input', 'type', 'enum'];
 
 /**
  * @param {FieldResponseType} responseType
+ * @param {Object.<string, GraphQlParam>} params
  */
 function blockDataHelper(responseType, params) {
   let _responseType = responseType;
@@ -27,6 +28,10 @@ function blockDataHelper(responseType, params) {
   };
 }
 
+/**
+ * @param {string} responseName
+ * @param {*} fieldData
+ */
 function labelHelper(responseName, fieldData) {
   let tmp = `${responseName || ''}`;
 
@@ -105,6 +110,9 @@ class GraphQlBlock {
     return this.fields[name];
   }
 
+  /**
+   * Convert into JSON object
+   */
   toJson() {
     return {
       name: this.name,
@@ -115,7 +123,7 @@ class GraphQlBlock {
   }
 
   /**
-   * Convert to GraphQL string
+   * Convert into GraphQL string
    */
   toGql() {
     const type = `${(this.isExtend ? 'extend ' : '')}${this.type} ${this.name}`;

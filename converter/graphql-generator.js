@@ -69,10 +69,17 @@ class GraphQLGenerator {
     return this.blocks[name];
   }
 
+  /**
+   * @param {string} name
+   * @returns {GraphQlBlock}
+   */
   get(name) {
     return this.blocks[name];
   }
 
+  /**
+   * Convert into GraphQL Schema
+   */
   toGql() {
     let output = '';
     const blockKeys = Object.keys(this.blocks);
