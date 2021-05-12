@@ -84,9 +84,8 @@ class GraphQLGenerator {
     let output = '';
     const blockKeys = Object.keys(this.blocks);
 
-    if (this.Query.listFields().length < 1) throw new Error('Query must have at least one field');
-
     output += rootQuery.toGql();
+    output += rootMutation.toGql();
 
     for (let i = 0; i < blockKeys.length; i++) {
       const block = this.blocks[blockKeys[i]];
@@ -94,11 +93,12 @@ class GraphQLGenerator {
     }
 
     if (this.Mutation.listFields().length > 0) {
-      output += rootMutation.toGql();
       output += this.Mutation.toGql();
     }
 
-    output += this.Query.toGql();
+    if (this.Query.listFields().length > 0) {
+      output += this.Query.toGql();
+    }
 
     return output;
   }

@@ -99,17 +99,14 @@ class RPCServer extends EventEmitter {
       controllers.map((x) => registerResolvers.push(require(x)));
     }
 
+    // Construct a schema, using GraphQL schema language from
+    // protobuf to GraphQL converter
+    const { gqlSchema } = this.rpcService;
+    registerTypes.push(gql`${gqlSchema}`);
+
     if (auto) {
-      // Construct a schema, using GraphQL schema language from
-      // protobuf to GraphQL converter
-      const { gqlSchema } = this.rpcService;
-      if (!gqlSchema) {
-        console.warn('GraphQL Server start failed due to missing schema.');
-        return this;
-      }
       // Provide resolver functions for your schema fields
       // This section will automatically generate functions and resolvers
-      registerTypes.push(gql`${gqlSchema}`);
       registerResolvers.push(genResolvers(this.rpcService.packages));
     }
 
