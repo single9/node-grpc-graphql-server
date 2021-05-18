@@ -156,16 +156,16 @@ function converter(packageObjects, configs) {
       /** @type {GraphQlBlock} */
       let mutateType;
       const protosType = packageObjKeys[i];
-      if (!('service' in packageObj[protosType])) return;
+      if (!('service' in packageObj[protosType])) continue;
 
       const serviceConfig = config.services.find((service) => service.name === protosType);
-      if (!serviceConfig) return;
+      if (!serviceConfig) continue;
 
       serviceConfig.grpcOnly = serviceConfig.grpcOnly === undefined
         ? (serviceConfig.mutate === false && serviceConfig.query === false)
         : serviceConfig.grpcOnly;
 
-      if (serviceConfig.grpcOnly) return;
+      if (serviceConfig.grpcOnly) continue;
       if (serviceConfig.query !== false) {
         queryType = gqlSchema.get(queryTypeName);
 
