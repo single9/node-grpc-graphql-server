@@ -42,7 +42,14 @@ class RPCClient extends RPCService {
           host || 'localhost:50051',
           _service.creds || grpc.credentials.createInsecure(),
         );
+
         const newFunctions = { ...serviceClient };
+
+        Object.assign(newFunctions, {
+          close: serviceClient.close,
+          getChannel: serviceClient.getChannel,
+        });
+
         serviceFunctionsKey.forEach((fnName) => {
           // Promise the functions
           newFunctions[fnName] = (...args) => {
