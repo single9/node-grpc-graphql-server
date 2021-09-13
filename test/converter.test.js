@@ -27,10 +27,10 @@ describe('Test converter', () => {
     gqlSchema.should.be.String();
 
     const gqlDefinition = gql`${gqlSchema}`;
-    gqlDefinition.definitions.find(def => def.name.value === 'helloworld_query').should.be.Object();
-    gqlDefinition.definitions.find(def => def.name.value === 'Greeter').should.be.Object();
-    (gqlDefinition.definitions.find(def => def.name.value === 'calculator_query') === undefined).should.be.True();
-    gqlSchema.should.be.String();
+    should(gqlDefinition.definitions.find(def => def.name.value === 'helloworld_query')).be.Object();
+    should(gqlDefinition.definitions.find(def => def.name.value === 'Greeter_query')).be.Object();
+    should((gqlDefinition.definitions.find(def => def.name.value === 'calculator_query') === undefined)).be.True();
+    should(gqlSchema).be.String();
     done();
   });
 
@@ -56,10 +56,10 @@ describe('Test converter', () => {
     gqlSchema.should.be.String();
 
     const gqlDefinition = gql`${gqlSchema}`;
-    gqlDefinition.definitions.find(def => def.name.value === 'helloworld_query').should.be.Object();
-    gqlDefinition.definitions.find(def => def.name.value === 'Greeter').should.be.Object();
-    gqlDefinition.definitions.find(def => def.name.value === 'calculator_query').should.be.Object();
-    gqlDefinition.definitions.find(def => def.name.value === 'Simple').should.be.Object();
+    should(gqlDefinition.definitions.find(def => def.name.value === 'helloworld_query')).be.Object();
+    should(gqlDefinition.definitions.find(def => def.name.value === 'Greeter_query')).be.Object();
+    should(gqlDefinition.definitions.find(def => def.name.value === 'calculator_query')).be.Object();
+    should(gqlDefinition.definitions.find(def => def.name.value === 'Simple_query')).be.Object();
     done();
   });
 
@@ -90,10 +90,10 @@ describe('Test converter', () => {
     gqlSchema.should.be.String();
 
     const gqlDefinition = gql`${gqlSchema}`;
-    gqlDefinition.definitions.find(def => def.name.value === 'helloworld_query').should.be.Object();
-    gqlDefinition.definitions.find(def => def.name.value === 'Greeter').should.be.Object();
-    (gqlDefinition.definitions.find(def => def.name.value === 'calculator_query') === undefined).should.be.True();
-    gqlDefinition.definitions.find(def => def.name.value === 'Simple').should.be.Object();
+    should(gqlDefinition.definitions.find(def => def.name.value === 'helloworld_query')).be.Object();
+    should(gqlDefinition.definitions.find(def => def.name.value === 'Greeter_query')).be.Object();
+    should(gqlDefinition.definitions.find(def => def.name.value === 'calculator_query')).be.Undefined();
+    should(gqlDefinition.definitions.find(def => def.name.value === 'Simple_query')).should.be.Object();
     done();
   });
 });
