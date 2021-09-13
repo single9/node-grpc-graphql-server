@@ -174,9 +174,10 @@ module.exports = RPCService;
  *                                        (Client Only) service server credentials
  *                                        (default: insecure)
  * @property {Object<string, function>} implementation      Service implementation (controller)
- * @property {boolean}                  [mutate=false]      (GraphQL mutatiom) Is it can be mutated?
- * @property {boolean}                  [query=true]        (GraphQL query)    Is it can be queried?
- * @property {boolean}                  [grpcOnly=false]    Only available on the gRPC
+ * @property {boolean|string[]}         [mutate=false]      (GraphQL mutation) Is it can be mutated?
+ * @property {boolean|string[]}         [query=true]        (GraphQL query)    Is it can be queried?
+ * @property {string[]}      [exclude]           (GraphQL) A list of service functions to exclude
+ * @property {boolean}       [grpcOnly=false]    Only available on the gRPC
  */
 
 /**
