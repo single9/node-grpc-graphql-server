@@ -86,6 +86,9 @@ class RPCClient extends RPCService {
                         request: args[0],
                       },
                     };
+                    // close this connection
+                    serviceClient.close();
+                    // fire event `grpc_client_error`
                     this.emit('grpc_client_error', errDetails);
                     // add call to error object
                     _err.call = errDetails.call;
