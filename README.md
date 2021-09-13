@@ -6,7 +6,7 @@
 
     npm install express @grpc/proto-loader apollo-server-express grpc-graphql-server
 
-### gRPC JS runtime library
+### (Optional) gRPC JS runtime library
 
 Install [grpc-tools](https://github.com/grpc/grpc-node/tree/master/packages/grpc-tools) to generates gRPC JS runtime library
 
@@ -99,18 +99,26 @@ const rpcServer = new RPCServer({
   // protoFile: __dirname + '/protos/hello.proto', // set the protobuf file path. (string|string[])
   // protoFile: __dirname + '/protos', // set the path of protobuf files.
   graphql: true, // Set true to enable GrpahQL because it's not enabled by default.
-  packages: [
-    {
-      name: "helloworld",
-      services: [
-        {
-          name: "Greeter",
-          implementation: methods.hello,
-          mutate: false,
-        },
-      ],
-    },
-  ],
+  grpc: {
+    //protoFile: `${__dirname}/../protos/`, // path of protobuf files.
+    packages: [
+      {
+        name: "helloworld",
+        services: [
+          {
+            name: "Greeter",
+            implementation: methods.hello,
+            mutate: false, // set true to add this service to the mutation
+            // also you can set individual function of service to specified type.
+            // It will be added to the type you specified.
+            //mutate: [
+            //  "SayHello"
+            //]
+          },
+        ],
+      },
+    ],
+  }
 });
 
 rpcServer.once("grpc_server_started", async (payload) => {
