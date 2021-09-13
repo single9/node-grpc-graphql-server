@@ -131,11 +131,9 @@ module.exports = RPCServer;
  * @typedef  {object} ServerConstructorParams
  * @property {string}                        ip
  * @property {number}                        port
- * @property {RPCService.RPCServicePackages}   packages
  * @property {RPCService.RPCServiceGrpcParams} grpc
  * @property {GraphqlProperty|boolean}       [graphql]
  * @property {grpc.ServerCredentials}        [creds]
- * @property {string|string[]}               [protoFile]
  */
 
 /**
