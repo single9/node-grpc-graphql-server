@@ -215,6 +215,7 @@ function converter(packageObjects, configs) {
         typeConverter(packageObj, responseType.name);
       }
 
+      const excludedTypes = serviceConfig.exclude;
       const queryFunctions = serviceConfig.query;
       const mutateFunctions = serviceConfig.mutate;
       const protoGqlTypeQuery = gqlSchema.createType(`${protosType}_query`);
@@ -223,6 +224,10 @@ function converter(packageObjects, configs) {
       for (let k = 0; k < serviceType.length; k++) {
         const service = serviceType[k];
         const params = {};
+
+        if (excludedTypes && excludedTypes.indexOf(service.name) >= 0) {
+          continue;
+        }
 
         service.requestParams.forEach((param) => {
           params[param.name] = {
