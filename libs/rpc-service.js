@@ -3,6 +3,7 @@ const grpc = require('@grpc/grpc-js');
 const fs = require('fs');
 const { EventEmitter } = require('events');
 const protoLoader = require('@grpc/proto-loader');
+const debug = require('debug')('grpc-gql-server:rpc-service');
 const grpcToGraphQL = require('../converter/index.js');
 const {
   recursiveGetPackage, replacePackageName, readProtofiles, genGrpcJs, getGrpcJsFiles,
@@ -110,6 +111,7 @@ class RPCService extends EventEmitter {
     if (this.grpcServer && !(this.generatedGrpcService)
       && (this.graphql === true || (this.graphql && this.graphql.enable === true))) {
       this.gqlSchema = grpcToGraphQL(packageDefinition, this.packages);
+      debug('%s', this.gqlSchema);
     }
 
     this.packages.forEach((pack) => {

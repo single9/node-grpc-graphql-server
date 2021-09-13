@@ -1,3 +1,4 @@
+const debug = require('debug')('grpc-gql-server:converter');
 const { type: gqlType } = require('./graphql-type.js');
 const GraphQLGenerator = require('./graphql-generator.js');
 const { recursiveGetPackage, replacePackageName } = require('../libs/tools.js');
@@ -214,7 +215,11 @@ function converter(packageObjects, configs) {
         typeConverter(packageObj, responseType.name);
       }
 
-      const protoGqlType = gqlSchema.createType(protosType);
+      const queryFunctions = serviceConfig.query;
+      const mutateFunctions = serviceConfig.mutate;
+      const protoGqlTypeQuery = gqlSchema.createType(`${protosType}_query`);
+      const protoGqlTypeMutate = gqlSchema.createType(`${protosType}_mutate`);
+
       for (let k = 0; k < serviceType.length; k++) {
         const service = serviceType[k];
         const params = {};
@@ -225,20 +230,38 @@ function converter(packageObjects, configs) {
           };
         });
 
-        protoGqlType.addFieldWithParams(service.name, params, {
-          type: gqlSchema.get(service.responseType),
-        });
+        if (queryFunctions && queryFunctions.indexOf(service.name) >= 0) {
+          debug(`Adding query function: ${service.name}`);
+          protoGqlTypeQuery.addFieldWithParams(service.name, params, {
+            type: gqlSchema.get(service.responseType),
+          });
+        } else if (mutateFunctions && mutateFunctions.indexOf(service.name) >= 0) {
+          debug(`Adding mutate function: ${service.name}`);
+          protoGqlTypeMutate.addFieldWithParams(service.name, params, {
+            type: gqlSchema.get(service.responseType),
+          });
+        } else {
+          debug(`Adding query & mutate function: ${service.name}`);
+          protoGqlTypeQuery.addFieldWithParams(service.name, params, {
+            type: gqlSchema.get(service.responseType),
+          });
+          protoGqlTypeMutate.addFieldWithParams(service.name, params, {
+            type: gqlSchema.get(service.responseType),
+          });
+        }
       }
 
       if (queryType) {
+        debug(`Adding query type -> ${protosType}: ${protoGqlTypeQuery.name}`);
         queryType.addField(protosType, {
-          type: protoGqlType,
+          type: protoGqlTypeQuery,
         });
       }
 
       if (mutateType) {
+        debug(`Adding mutate type -> ${protosType}: ${protoGqlTypeMutate.name}`);
         mutateType.addField(protosType, {
-          type: protoGqlType,
+          type: protoGqlTypeMutate,
         });
       }
     }

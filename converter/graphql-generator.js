@@ -89,7 +89,10 @@ class GraphQLGenerator {
 
     for (let i = 0; i < blockKeys.length; i++) {
       const block = this.blocks[blockKeys[i]];
-      output += block.toGql();
+
+      if (Object.keys(block.fields).length > 0) {
+        output += block.toGql();
+      }
     }
 
     if (this.Mutation.listFields().length > 0) {
