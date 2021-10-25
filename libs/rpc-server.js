@@ -94,9 +94,9 @@ class RPCServer extends EventEmitter {
         controllers = readDir(resolverPath, '.js');
       }
 
-      schemasJs.map((x) => registerTypes.push(require(x)));
-      schemasGraphql.map((x) => registerTypes.push(fs.readFileSync(x, { encoding: 'utf8' })));
-      controllers.map((x) => registerResolvers.push(require(x)));
+      schemasJs.forEach((x) => registerTypes.push(require(x)));
+      schemasGraphql.forEach((x) => registerTypes.push(fs.readFileSync(x, { encoding: 'utf8' })));
+      controllers.forEach((x) => registerResolvers.push(require(x)));
     }
 
     // Construct a schema, using GraphQL schema language from
