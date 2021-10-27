@@ -204,12 +204,10 @@ function getGrpcJsFiles(grpcJsFileDir) {
 
   if (!isBaseGrpcJsFileDirExists) fs.mkdirSync(baseGrpcJsFileDir);
 
-  const result = {
+  return {
     services: readDir(baseGrpcJsFileDir, '.js').filter((val) => val.search(/_grpc_pb.js$/) >= 0),
     messages: readDir(baseGrpcJsFileDir, '.js').filter((val) => val.search(/_pb.js$/) >= 0),
   };
-
-  return result;
 }
 
 module.exports = {

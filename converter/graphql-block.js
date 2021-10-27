@@ -84,7 +84,6 @@ class GraphQlBlock {
    */
   addFieldWithParams(name, params, responseType) {
     if (this.fields[name]) throw new Error(`field '${name}' already exists`);
-    // if (this.type === 'enum') throw new Error('enum is not support params ');
 
     if (params) {
       Object.keys(params).forEach((key) => {
