@@ -15,7 +15,8 @@
     "no-underscore-dangle": "off",
     "camelcase": "off",
     "no-plusplus": "off",
-    "no-console": "off"
+    "no-console": "off",
+    "import/extensions": "off"
  },
   "parserOptions": {
     "sourceType": "module",
