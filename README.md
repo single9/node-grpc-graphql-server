@@ -16,6 +16,8 @@ And install [google-protobuf](https://www.npmjs.com/package/google-protobuf) for
 
     npm i google-protobuf
 
+After installation, you can now build the gRPC JS clinet/pb. See [here](#generate-grpc-js-runtime-library).
+
 ## Usage
 
 ### Server
@@ -434,7 +436,7 @@ rpcClient['topname_subname_v1'].<service_name>.method({ a: 1 }, function (err, r
 await rpcClient['topname_subname_v1'].<service_name>.method({ a: 1 });
 ```
 
-# Generate gRPC JS runtime library
+# Generate gRPC JS runtime library (experimental)
 
 **Since Version 0.4.x**
 
@@ -442,11 +444,11 @@ await rpcClient['topname_subname_v1'].<service_name>.method({ a: 1 });
 
 If you want to use generated js runtime library for server side, you should install `grpc-tools` and run the command below:
 
-    ./node_modules/grpc-graphql-server/bin/index.js init <proto_files_dir> <grpc_js_out_dir>
+    npx grpc-graphql-server init <proto_files_dir> <grpc_js_out_dir>
 
 e.g.
 
-    ./node_modules/grpc-graphql-server/bin/index.js ./protos/ ./grpc
+    npx grpc-graphql-server init ./protos/ ./grpc
 
 ## Server
 
