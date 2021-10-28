@@ -1,12 +1,9 @@
 const fs = require('fs');
 const grpc = require('@grpc/grpc-js');
 const { EventEmitter } = require('events');
-// eslint-disable-next-line import/no-extraneous-dependencies
-const ApolloServerExpress = require('apollo-server-express');
 const RPCService = require('./rpc-service.js');
 const { genResolvers, readDir } = require('./tools.js');
 
-const { ApolloServer, makeExecutableSchema, gql } = ApolloServerExpress;
 class RPCServer extends EventEmitter {
   /**
    * Creates an instance of RPC Server
@@ -101,6 +98,9 @@ class RPCServer extends EventEmitter {
 
     // Construct a schema, using GraphQL schema language from
     // protobuf to GraphQL converter
+    // eslint-disable-next-line import/no-extraneous-dependencies
+    const ApolloServerExpress = require('apollo-server-express');
+    const { ApolloServer, gql } = ApolloServerExpress;
     const { gqlSchema } = this.rpcService;
     registerTypes.push(gql`${gqlSchema}`);
 
@@ -113,6 +113,9 @@ class RPCServer extends EventEmitter {
     this.gqlConfigs = {
       logger, context, formatError, playground, introspection,
     };
+
+    // eslint-disable-next-line import/no-extraneous-dependencies
+    const { makeExecutableSchema } = require('@graphql-tools/schema');
 
     this.gqlConfigs.schema = makeExecutableSchema({
       typeDefs: registerTypes,
