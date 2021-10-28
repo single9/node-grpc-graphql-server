@@ -16,7 +16,7 @@ And install [google-protobuf](https://www.npmjs.com/package/google-protobuf) for
 
     npm i google-protobuf
 
-After installation, you can now build the gRPC JS clinet/pb. See [here](#generate-grpc-js-runtime-library).
+After installation, you can now build the gRPC JS clinet/pb. See [here](#generate-grpc-js-runtime-library-experimental).
 
 ## Usage
 
