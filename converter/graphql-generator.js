@@ -47,7 +47,7 @@ class GraphQLGenerator {
    * @param {Object.<string, GraphQlBlock.GraphQlParam>} params
    * @param {GraphQlBlock.FieldResponseType} responseType
    */
-   addToSubscription(name, params, responseType) {
+  addToSubscription(name, params, responseType) {
     return this.Subscription.addFieldWithParams(name, params, responseType);
   }
 
@@ -98,6 +98,7 @@ class GraphQLGenerator {
 
     output += rootQuery.toGql();
     output += rootMutation.toGql();
+    output += rootSubscription.toGql();
 
     for (let i = 0; i < blockKeys.length; i++) {
       const block = this.blocks[blockKeys[i]];
@@ -113,6 +114,10 @@ class GraphQLGenerator {
 
     if (this.Query.listFields().length > 0) {
       output += this.Query.toGql();
+    }
+
+    if (this.Subscription.listFields().length > 0) {
+      output += this.Subscription.toGql();
     }
 
     return output;
