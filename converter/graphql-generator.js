@@ -3,9 +3,11 @@ const GraphQlBlock = require('./graphql-block.js');
 
 const rootQuery = new GraphQlBlock('type', 'Query');
 const rootMutation = new GraphQlBlock('type', 'Mutation');
+const rootSubscription = new GraphQlBlock('type', 'Subscription');
 
 rootQuery.addField('_', { type: gqlType.String });
 rootMutation.addField('_', { type: gqlType.String });
+rootSubscription.addField('_', { type: gqlType.String });
 
 class GraphQLGenerator {
   constructor() {
@@ -19,6 +21,7 @@ class GraphQLGenerator {
 
     this.Query = new GraphQlBlock('type', 'Query', { extend: true });
     this.Mutation = new GraphQlBlock('type', 'Mutation', { extend: true });
+    this.Subscription = new GraphQlBlock('type', 'Subscription', { extend: true });
   }
 
   /**
@@ -37,6 +40,15 @@ class GraphQLGenerator {
    */
   addToMutation(name, params, responseType) {
     return this.Mutation.addFieldWithParams(name, params, responseType);
+  }
+
+  /**
+   * @param {string} name
+   * @param {Object.<string, GraphQlBlock.GraphQlParam>} params
+   * @param {GraphQlBlock.FieldResponseType} responseType
+   */
+   addToSubscription(name, params, responseType) {
+    return this.Subscription.addFieldWithParams(name, params, responseType);
   }
 
   /**
