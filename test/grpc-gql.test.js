@@ -47,7 +47,7 @@ describe('Test gRPC-GraphQL Server', () => {
   });
 
   it('should create grpc client', (done) => {
-    rpcClient = new RPCClient({
+    rpcClient = initRPCClient({
       protoFile: `${__dirname}/../examples/protos/hello.proto`,
       packages: [
         {

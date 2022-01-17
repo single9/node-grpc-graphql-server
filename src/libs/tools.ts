@@ -1,30 +1,36 @@
-const fs = require('fs');
-const path = require('path');
-const { spawnSync } = require('child_process');
+import fs from 'fs';
+import path from 'path';
+import { spawnSync } from 'child_process';
+import { RPCServicePackages } from './rpc-service';
 
 const grpcTools = `${process.cwd()}/node_modules/grpc-tools/bin/protoc.js`;
-const allowResolverType = [
-  'query',
-  'mutate',
-];
+const allowResolverType = ['query', 'mutate'];
+
+interface IGqlResolver {
+  (parent?: any, args?: any, context?: any, info?: any): any;
+}
+
+export type GenGrpcJsOpts = {
+  outputType: 'grpc_js' | 'generate_package_definition';
+};
 
 /**
  * Replace package name
- * @param {string} name Name
  */
-function replacePackageName(name) {
+function replacePackageName(name: string) {
   return (name.indexOf('.') !== -1 && name.replace(/\./g, '_')) || name;
 }
 
 /**
- *
- * @param {string} type Type
- * @param {RPCService.RPCServicePackages[]} packages
+ * Generate resolvers
  */
-function genResolverType(type, packages) {
-  if (allowResolverType.indexOf(type) < 0) throw new Error(`Invalid type: ${type}`);
+function genResolverType(type: string, packages: RPCServicePackages[]) {
+  if (allowResolverType.indexOf(type) < 0)
+    throw new Error(`Invalid type: ${type}`);
 
-  const resolverObj = {};
+  const resolverObj: {
+    [x: string]: IGqlResolver;
+  } = {};
 
   packages.forEach((pack) => {
     const serviceFn = {};
@@ -46,8 +52,11 @@ function genResolverType(type, packages) {
   return resolverObj;
 }
 
-function genResolvers(packages) {
-  const resolvers = {};
+function genResolvers(packages: RPCServicePackages[]) {
+  const resolvers: {
+    Query?: { [x: string]: IGqlResolver };
+    Mutation?: { [x: string]: IGqlResolver };
+  } = {};
   const Query = genResolverType('query', packages);
   const Mutation = genResolverType('mutate', packages);
 
@@ -64,10 +73,10 @@ function genResolvers(packages) {
 
 /**
  * Get package data
- * @param {string} packageNames Package name
- * @param {object} _package    gRPC package object
+ * @param packageNames Package name
+ * @param _package     gRPC package object
  */
-function recursiveGetPackage(packageNames, _package) {
+function recursiveGetPackage(packageNames: string[], _package: object) {
   const name = packageNames.shift();
   const pkg = _package[name];
   if (packageNames.length > 0) {
@@ -81,7 +90,7 @@ function recursiveGetPackage(packageNames, _package) {
  * @param {string} dir Path of directory
  * @param {string} extname Extension name
  */
-function readDir(dir, extname) {
+function readDir(dir: string, extname: string) {
   if (!dir) throw new Error('`dir` must be specified.');
   if (!extname) throw new Error('`extname` must be specified.');
   if (fs.statSync(dir).isDirectory() === false) {
@@ -89,10 +98,12 @@ function readDir(dir, extname) {
   }
 
   const protosFiles = fs.readdirSync(dir);
-  let files = protosFiles.filter((file) => path.extname(file) === extname)
+  let files = protosFiles
+    .filter((file) => path.extname(file) === extname)
     .map((file) => `${dir}/${file}`);
 
-  const dirs = protosFiles.filter((file) => path.extname(file) !== extname)
+  const dirs = protosFiles
+    .filter((file) => path.extname(file) !== extname)
     .map((file) => `${dir}/${file}`)
     .filter((file) => fs.statSync(file).isDirectory());
 
@@ -108,14 +119,14 @@ function readDir(dir, extname) {
  * Read Protobuf files from directory
  * @param {string} protoFilePath Path of protobuf file or directory
  */
-function readProtofiles(protoFilePath) {
+function readProtofiles(protoFilePath: string) {
   return readDir(protoFilePath, '.proto');
 }
 
-function hyphensToCamelCase(str, upperCaseFirstChar) {
+function hyphensToCamelCase(str: string, upperCaseFirstChar?: boolean) {
   const arr = str.split(/[_-]/);
   let newStr = '';
-  for (let i = (upperCaseFirstChar === true ? 0 : 1); i < arr.length; i++) {
+  for (let i = upperCaseFirstChar === true ? 0 : 1; i < arr.length; i++) {
     newStr += arr[i].charAt(0).toUpperCase() + arr[i].slice(1);
   }
   return upperCaseFirstChar === true ? newStr : arr[0] + newStr;
@@ -125,18 +136,24 @@ function checkGrpcTools() {
   const isGrpcToolsExists = fs.existsSync(grpcTools);
 
   if (!isGrpcToolsExists) {
-    throw new Error('WARNING: `grpc-tools` is not intalled. I cannot convert your protobufs to grpc js module.');
+    throw new Error(
+      'WARNING: `grpc-tools` is not intalled. I cannot convert your protobufs to grpc js module.',
+    );
   }
 }
 
 /**
  * Convert protobuf files into gRPC code
  *
- * @param {string} protoFilePath Path of protibufs file
- * @param {string} outputDir     Path of output directory
- * @param {GenGrpcJsOpts}  opts  Options for generating grpc js
+ * @param protoFilePath Path of protibufs file
+ * @param outputDir     Path of output directory
+ * @param opts          Options for generating grpc js
  */
-function genGrpcJs(protoFilePath, outputDir, opts = {}) {
+function genGrpcJs(
+  protoFilePath: string,
+  outputDir: string,
+  opts?: GenGrpcJsOpts,
+) {
   checkGrpcTools();
   if (!outputDir) throw new Error('outDir is required');
 
@@ -146,7 +163,7 @@ function genGrpcJs(protoFilePath, outputDir, opts = {}) {
   if (!protoFilePath) throw new Error('protoFilePath is required');
   if (!isBaseOutputDirExists) fs.mkdirSync(baseOutputDir);
 
-  const outputType = opts.outputType || 'generate_package_definition';
+  const outputType = (opts && opts.outputType) || 'generate_package_definition';
   const files = readProtofiles(protoFilePath);
   const args = [
     `--proto_path=${protoFilePath}`,
@@ -162,12 +179,19 @@ function genGrpcJs(protoFilePath, outputDir, opts = {}) {
 
   const result = {
     outputType,
-    services: readDir(baseOutputDir, '.js').filter((val) => val.search(/_grpc_pb.js$/) >= 0),
-    messages: readDir(baseOutputDir, '.js').filter((val) => val.search(/_pb.js$/) >= 0),
+    services: readDir(baseOutputDir, '.js').filter(
+      (val) => val.search(/_grpc_pb.js$/) >= 0,
+    ),
+    messages: readDir(baseOutputDir, '.js').filter(
+      (val) => val.search(/_pb.js$/) >= 0,
+    ),
   };
 
   const indexModuleName = [];
-  const writeIndexFile = (data, flag) => {
+  const writeIndexFile = (
+    data: string | NodeJS.ArrayBufferView,
+    flag?: string,
+  ) => {
     fs.writeFileSync(`${baseOutputDir}/index.js`, data, { flag });
   };
 
@@ -177,7 +201,13 @@ function genGrpcJs(protoFilePath, outputDir, opts = {}) {
     const service = result.services[i];
     const moduleName = hyphensToCamelCase(path.basename(service, '.js'));
     indexModuleName.push(moduleName);
-    writeIndexFile(`const ${moduleName} = require('./${path.relative(baseOutputDir, service)}');\n`, 'a+');
+    writeIndexFile(
+      `const ${moduleName} = require('./${path.relative(
+        baseOutputDir,
+        service,
+      )}');\n`,
+      'a+',
+    );
   }
 
   // generate grpc module index file
@@ -186,7 +216,9 @@ function genGrpcJs(protoFilePath, outputDir, opts = {}) {
 
   for (let i = 0; i < indexModuleName.length; i++) {
     const name = indexModuleName[i];
-    exportModule += `\t${name},${((i !== indexModuleName.length - 1) && '\n') || ''}`;
+    exportModule += `\t${name},${
+      (i !== indexModuleName.length - 1 && '\n') || ''
+    }`;
   }
 
   tempExportStr = tempExportStr.replace('<exports>', exportModule);
@@ -205,12 +237,16 @@ function getGrpcJsFiles(grpcJsFileDir) {
   if (!isBaseGrpcJsFileDirExists) fs.mkdirSync(baseGrpcJsFileDir);
 
   return {
-    services: readDir(baseGrpcJsFileDir, '.js').filter((val) => val.search(/_grpc_pb.js$/) >= 0),
-    messages: readDir(baseGrpcJsFileDir, '.js').filter((val) => val.search(/_pb.js$/) >= 0),
+    services: readDir(baseGrpcJsFileDir, '.js').filter(
+      (val) => val.search(/_grpc_pb.js$/) >= 0,
+    ),
+    messages: readDir(baseGrpcJsFileDir, '.js').filter(
+      (val) => val.search(/_pb.js$/) >= 0,
+    ),
   };
 }
 
-module.exports = {
+export {
   recursiveGetPackage,
   replacePackageName,
   readProtofiles,
@@ -221,8 +257,3 @@ module.exports = {
   getGrpcJsFiles,
   hyphensToCamelCase,
 };
-
-/**
- * @typedef {Object} GenGrpcJsOpts
- * @property {'grpc_js'|'generate_package_definition'} outputType
- */

@@ -158,7 +158,7 @@ See `examples/helloworld/grpc-client.js`.
 
 ```js
 const { RPCClient } = require("grpc-graphql-server");
-const rpcClient = new RPCClient({
+const rpcClient = initRPCClient({
   // protoFile: __dirname + '/protos', // Set this if your protobuf file doesn't located in the default directory.
   packages: [
     {
@@ -198,7 +198,7 @@ main();
 packages can also be like this:
 
 ```js
-const rpcClient = new RPCClient({
+const rpcClient = initRPCClient({
   ...
   packages: {
     helloworld: { // package name
@@ -389,7 +389,7 @@ We add events to let you can handle more, such as client errors.
 Only client need.
 
 ```js
-const client = new RPCClient({
+const client = initRPCClient({
   originalClass: true,
 });
 

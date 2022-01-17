@@ -1,5 +1,5 @@
 const app = require('express')();
-const { RPCServer } = require('../../index.js');
+const { RPCServer } = require('../..');
 const Hello = require('./controllers/helloworld.js');
 
 const methods = {

@@ -1,4 +1,4 @@
-const { Controller } = require('../../../index.js');
+const { Controller } = require('../../..');
 
 class Hello extends Controller {
   SayHello(call, callback) {
