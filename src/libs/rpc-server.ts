@@ -1,11 +1,8 @@
 import fs from 'fs';
 import * as grpc from '@grpc/grpc-js';
 import { EventEmitter } from 'events';
-import RPCService, {
-  RPCServiceGrpcParams,
-  ParamGraphql,
-} from './rpc-service.js';
-import { genResolvers, readDir } from './tools.js';
+import RPCService, { RPCServiceGrpcParams, ParamGraphql } from './rpc-service';
+import { genResolvers, readDir } from './tools';
 
 type GqlConfigs = {
   logger: any;
@@ -183,9 +180,9 @@ export class RPCServer extends EventEmitter {
 }
 
 export type ServerConstructorParams = {
-  ip: string;
-  port: number;
+  ip?: string;
+  port?: number;
   grpc: RPCServiceGrpcParams;
   graphql?: boolean | ParamGraphql;
-  creds: grpc.ServerCredentials;
+  creds?: grpc.ServerCredentials;
 };

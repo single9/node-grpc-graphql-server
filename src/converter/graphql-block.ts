@@ -1,4 +1,4 @@
-import { GqlBlockType, GqlType } from './graphql-type.js';
+import { GqlBlockType, GqlType } from './graphql-type';
 
 const blockType = ['input', 'type', 'enum'];
 
@@ -45,14 +45,10 @@ export type RepeatedType = {
   nullable?: boolean;
 };
 
-/**
- * @param {FieldResponseType} responseType
- * @param {Object.<string, GraphQlParam>} params
- */
 function blockDataHelper(
   responseType: FieldResponseType,
   params: { [s: string]: GraphQlParam },
-) {
+): GraphQlBlockField {
   let _responseType: FieldResponseType | string = responseType;
   const _gqlBlock = _responseType.type;
   const opts = _responseType;
@@ -100,7 +96,7 @@ function labelHelper(responseName: string, fieldData: any) {
 class GraphQlBlock {
   name: string;
   type: string;
-  fields: any = {};
+  fields: GraphQlBlockFields | any;
   isExtend: boolean;
 
   constructor(
@@ -113,12 +109,11 @@ class GraphQlBlock {
 
     this.name = name;
     this.type = type;
-    /** @type {GraphQlBlockFields} */
     this.fields = {};
     this.isExtend = opts.extend || false;
   }
 
-  addField(name: string, responseType?: FieldResponseType) {
+  addField(name: string, responseType?: FieldResponseType): GraphQlBlockField {
     if (this.fields[name]) throw new Error(`field '${name}' already exists`);
     if (this.type !== GqlBlockType.enum && !responseType)
       throw new Error(`field '${name}' requires response type`);
@@ -126,13 +121,15 @@ class GraphQlBlock {
     this.fields[name] =
       (this.type === GqlBlockType.enum && {}) ||
       blockDataHelper(responseType, null);
+
+    return this.fields[name];
   }
 
   addFieldWithParams(
     name: string,
     params: { [s: string]: GraphQlParam },
     responseType: FieldResponseType,
-  ) {
+  ): GraphQlBlockField {
     if (this.fields[name]) throw new Error(`field '${name}' already exists`);
 
     if (params) {
@@ -159,9 +156,10 @@ class GraphQlBlock {
     }
 
     this.fields[name] = blockDataHelper(responseType, params);
+    return this.fields[name];
   }
 
-  getField(name: string) {
+  getField(name: string): GraphQlBlockField {
     return this.fields[name];
   }
 

@@ -1,10 +1,10 @@
 import * as grpc from '@grpc/grpc-js';
 import protoLoader from '@grpc/proto-loader';
-import { recursiveGetPackage, replacePackageName } from './tools.js';
+import { recursiveGetPackage, replacePackageName } from './tools';
 import RPCService, {
   gRPCServiceClients,
   RPCServiceGrpcParams,
-} from './rpc-service.js';
+} from './rpc-service';
 
 export type ClientConstructorParams = {
   protoFile?: string | string[];

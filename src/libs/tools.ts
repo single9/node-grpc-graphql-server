@@ -17,14 +17,14 @@ export type GenGrpcJsOpts = {
 /**
  * Replace package name
  */
-function replacePackageName(name: string) {
+export function replacePackageName(name: string) {
   return (name.indexOf('.') !== -1 && name.replace(/\./g, '_')) || name;
 }
 
 /**
  * Generate resolvers
  */
-function genResolverType(type: string, packages: RPCServicePackages[]) {
+export function genResolverType(type: string, packages: RPCServicePackages[]) {
   if (allowResolverType.indexOf(type) < 0)
     throw new Error(`Invalid type: ${type}`);
 
@@ -52,7 +52,7 @@ function genResolverType(type: string, packages: RPCServicePackages[]) {
   return resolverObj;
 }
 
-function genResolvers(packages: RPCServicePackages[]) {
+export function genResolvers(packages: RPCServicePackages[]) {
   const resolvers: {
     Query?: { [x: string]: IGqlResolver };
     Mutation?: { [x: string]: IGqlResolver };
@@ -76,7 +76,7 @@ function genResolvers(packages: RPCServicePackages[]) {
  * @param packageNames Package name
  * @param _package     gRPC package object
  */
-function recursiveGetPackage(packageNames: string[], _package: object) {
+export function recursiveGetPackage(packageNames: string[], _package: object) {
   const name = packageNames.shift();
   const pkg = _package[name];
   if (packageNames.length > 0) {
@@ -88,9 +88,9 @@ function recursiveGetPackage(packageNames: string[], _package: object) {
 /**
  * Read directory
  * @param {string} dir Path of directory
- * @param {string} extname Extension name
+ * @param {string} extname Extension name (with `dot`. e.g. `.js`)
  */
-function readDir(dir: string, extname: string) {
+export function readDir(dir: string, extname: string): string[] {
   if (!dir) throw new Error('`dir` must be specified.');
   if (!extname) throw new Error('`extname` must be specified.');
   if (fs.statSync(dir).isDirectory() === false) {
@@ -119,11 +119,11 @@ function readDir(dir: string, extname: string) {
  * Read Protobuf files from directory
  * @param {string} protoFilePath Path of protobuf file or directory
  */
-function readProtofiles(protoFilePath: string) {
+export function readProtofiles(protoFilePath: string) {
   return readDir(protoFilePath, '.proto');
 }
 
-function hyphensToCamelCase(str: string, upperCaseFirstChar?: boolean) {
+export function hyphensToCamelCase(str: string, upperCaseFirstChar = false) {
   const arr = str.split(/[_-]/);
   let newStr = '';
   for (let i = upperCaseFirstChar === true ? 0 : 1; i < arr.length; i++) {
@@ -132,7 +132,7 @@ function hyphensToCamelCase(str: string, upperCaseFirstChar?: boolean) {
   return upperCaseFirstChar === true ? newStr : arr[0] + newStr;
 }
 
-function checkGrpcTools() {
+export function checkGrpcTools() {
   const isGrpcToolsExists = fs.existsSync(grpcTools);
 
   if (!isGrpcToolsExists) {
@@ -149,7 +149,7 @@ function checkGrpcTools() {
  * @param outputDir     Path of output directory
  * @param opts          Options for generating grpc js
  */
-function genGrpcJs(
+export function genGrpcJs(
   protoFilePath: string,
   outputDir: string,
   opts?: GenGrpcJsOpts,
@@ -227,7 +227,7 @@ function genGrpcJs(
   return result;
 }
 
-function getGrpcJsFiles(grpcJsFileDir) {
+export function getGrpcJsFiles(grpcJsFileDir: string) {
   checkGrpcTools();
   if (!grpcJsFileDir) throw new Error('grpcJsFileDir is required');
 
@@ -245,15 +245,3 @@ function getGrpcJsFiles(grpcJsFileDir) {
     ),
   };
 }
-
-export {
-  recursiveGetPackage,
-  replacePackageName,
-  readProtofiles,
-  genResolverType,
-  genResolvers,
-  readDir,
-  genGrpcJs,
-  getGrpcJsFiles,
-  hyphensToCamelCase,
-};

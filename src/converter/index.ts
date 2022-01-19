@@ -1,8 +1,8 @@
 import Debug from 'debug';
-import { GqlType } from './graphql-type.js';
-import { GraphQLGenerator } from './graphql-generator.js';
-import { recursiveGetPackage, replacePackageName } from '../libs/tools.js';
-import GraphQlBlock from './graphql-block.js';
+import { GqlType } from './graphql-type';
+import { GraphQLGenerator } from './graphql-generator';
+import { recursiveGetPackage, replacePackageName } from '../libs/tools';
+import GraphQlBlock from './graphql-block';
 
 const debug = Debug('grpc-gql-server:converter');
 

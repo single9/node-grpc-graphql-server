@@ -1,9 +1,9 @@
-import { GqlType, GqlBlockType } from './graphql-type.js';
+import { GqlType, GqlBlockType } from './graphql-type';
 import GraphQlBlock, {
   FieldResponseType,
   GraphQlBlockOptions,
   GraphQlParam,
-} from './graphql-block.js';
+} from './graphql-block';
 
 const rootQuery = new GraphQlBlock('type', 'Query');
 const rootMutation = new GraphQlBlock('type', 'Mutation');
@@ -15,7 +15,7 @@ rootSubscription.addField('_', { type: GqlType.String });
 
 export class GraphQLGenerator {
   root: { query: GraphQlBlock; mutation: GraphQlBlock };
-  blocks: any = {};
+  blocks: { [name: string]: GraphQlBlock };
   Query: GraphQlBlock;
   Mutation: GraphQlBlock;
   Subscription: GraphQlBlock;
@@ -25,9 +25,7 @@ export class GraphQLGenerator {
       mutation: rootMutation,
     };
 
-    /** @type {Object.<string, GraphQlBlock>} */
     this.blocks = {};
-
     this.Query = new GraphQlBlock('type', 'Query', { extend: true });
     this.Mutation = new GraphQlBlock('type', 'Mutation', { extend: true });
     this.Subscription = new GraphQlBlock('type', 'Subscription', {

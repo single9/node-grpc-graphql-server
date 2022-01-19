@@ -4,38 +4,45 @@ import fs from 'fs';
 import Debug from 'debug';
 import { EventEmitter } from 'events';
 import * as protoLoader from '@grpc/proto-loader';
-import grpcToGraphQL from '../converter/index.js';
+import grpcToGraphQL from '../converter/index';
 import {
   recursiveGetPackage,
   replacePackageName,
   readProtofiles,
   genGrpcJs,
   getGrpcJsFiles,
-} from './tools.js';
+} from './tools';
 
 const debug = Debug('grpc-gql-server:rpc-service');
 
 export interface ServicesDescriptor {
   /** Service name */
   name: string;
-  /** (Client Only) service host (default: 'localhost') */
-  host?: string;
-  /** (Client Only) service port (default: 50051) */
-  port?: number;
-  /** (Client Only) service server credentials (default: insecure) */
-  creds?: grpc.ServerCredentials;
   /** Service implementation (controller) */
-  implementation: {
-    [x: string]: (
-      call: grpc.Call,
-      callback: (err: Error, data: any) => void,
-    ) => void;
-  };
+  implementation:
+    | any
+    | {
+        [x: string]: (
+          call: grpc.Call,
+          callback: (err: Error, data: any) => void,
+        ) => void;
+      };
   /** (GraphQL mutation) Is it can be mutated? default: false */
   mutate?: boolean;
-  /** (GraphQL query)    Is it can be queried? default: true */
+  /** (GraphQL query) Is it can be queried? default: true */
   query?: boolean;
   grpcOnly?: boolean;
+}
+
+export interface ClientServicesDescriptor {
+  /** Service name */
+  name?: string;
+  /** Service host (default: 'localhost') */
+  host?: string;
+  /** Service port (default: 50051) */
+  port?: number;
+  /** Service server credentials (default: insecure) */
+  creds?: grpc.ServerCredentials;
 }
 
 export type PackageDescriptorObj = {
@@ -44,10 +51,16 @@ export type PackageDescriptorObj = {
   };
 };
 
+export type ClientPackageDescriptorObj = {
+  [packageName: string]: {
+    [serviceName: string]: ClientServicesDescriptor;
+  };
+};
+
 export type RPCServicePackages = {
   /** Package name */
   name: string;
-  services: ServicesDescriptor[];
+  services: ServicesDescriptor[] | ClientServicesDescriptor[];
 };
 
 export type RPCServiceConstructorParams = {
@@ -61,7 +74,10 @@ export type RPCServiceGrpcParams = {
   /** gRPC protobuf files */
   protoFile: string | string[];
   /** packages */
-  packages: PackageDescriptorObj | RPCServicePackages[];
+  packages:
+    | PackageDescriptorObj
+    | ClientPackageDescriptorObj
+    | RPCServicePackages[];
   /** gRPC Server instance */
   server?: grpc.Server;
   /** External service */
@@ -114,13 +130,17 @@ export type gRPCServiceClientService = {
  */
 export type gRPCServiceClientServiceFn = {
   [x: string]: ClientCallFunction;
+} & {
+  /** Close the channel. This has the same functionality as the existing grpc.Client.prototype.close */
+  close: () => grpc.Channel['close'];
+  getChannel: () => grpc.Client['getChannel'];
 };
 
 /**
  * gRPC Client Service Function Call.
  */
 interface ClientCallFunction {
-  (req: object, callback?: CallFunctionCallback): Promise<any>;
+  (req?: object, callback?: CallFunctionCallback): Promise<any>;
 }
 
 /**

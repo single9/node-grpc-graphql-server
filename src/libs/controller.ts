@@ -1,7 +1,7 @@
 export class Controller {
   response(
     data: any,
-    callback: (err: Error, data: any) => void,
+    callback?: (err: Error, data: any) => void,
   ): void | Promise<any> {
     let err = (data instanceof Error && data) || null;
 
