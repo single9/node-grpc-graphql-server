@@ -1,6 +1,6 @@
-const { RPCClient } = require('../../index.js');
+const { initRPCClient } = require('../..');
 
-const rpcClient = new RPCClient({
+const rpcClient = initRPCClient({
   protoFile: `${__dirname}/../protos/hello.proto`,
   packages: [
     {

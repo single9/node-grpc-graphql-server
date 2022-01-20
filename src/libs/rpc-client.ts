@@ -1,26 +1,37 @@
-const grpc = require('@grpc/grpc-js');
-const { recursiveGetPackage, replacePackageName } = require('./tools.js');
-const RPCService = require('./rpc-service.js');
+import * as grpc from '@grpc/grpc-js';
+import protoLoader from '@grpc/proto-loader';
+import { recursiveGetPackage, replacePackageName } from './tools';
+import RPCService, {
+  gRPCServiceClients,
+  RPCServiceGrpcParams,
+} from './rpc-service';
 
-class RPCClient extends RPCService {
+export type ClientConstructorParams = {
+  protoFile?: string | string[];
+  packages: RPCServiceGrpcParams['packages'];
+};
+
+export class RPCClient extends RPCService {
   /**
    * Creates instance of RPC Client.
    * @param {ClientConstructorParams}      params
    * @param {protoLoader.Options}          opts
    */
-  constructor({ protoFile, packages, originalClass }, opts) {
+  constructor(
+    { protoFile, packages }: ClientConstructorParams,
+    opts?: protoLoader.Options,
+  ) {
     super({ grpc: { protoFile, packages } }, opts);
-
-    if (!originalClass) {
-      return this.clients;
-    }
   }
 
   init() {
     // main process
-    if (Array.isArray(this.packages) === false) throw new Error('Unable to initialize');
+    if (Array.isArray(this.packages) === false)
+      throw new Error('Unable to initialize');
     // load definitions from packages
-    const packageDefinition = grpc.loadPackageDefinition(this.packageDefinition);
+    const packageDefinition = grpc.loadPackageDefinition(
+      this.packageDefinition,
+    );
 
     this.packages.forEach((pack) => {
       const packNames = pack.name.split('.');
@@ -37,7 +48,9 @@ class RPCClient extends RPCService {
         _service.host = _service.host || 'localhost';
         _service.port = _service.port || '50051';
         const host = `${_service.host}:${_service.port}`;
-        const serviceFunctionsKey = Object.keys(packageObject[_service.name].service);
+        const serviceFunctionsKey = Object.keys(
+          packageObject[_service.name].service,
+        );
         const serviceClient = new packageObject[_service.name](
           host || 'localhost:50051',
           _service.creds || grpc.credentials.createInsecure(),
@@ -63,16 +76,20 @@ class RPCClient extends RPCService {
 
             // add metadata
             const metadata = new grpc.Metadata();
-            if ((_args[0] && _args[0].metadata) && Array.isArray(_args[0].metadata)) {
+            if (
+              _args[0] &&
+              _args[0].metadata &&
+              Array.isArray(_args[0].metadata)
+            ) {
               const inputMetadata = _args[0].metadata;
-              inputMetadata.forEach((iMeta) => {
-                metadata.set(...iMeta);
+              inputMetadata.forEach((iMeta: string[]) => {
+                metadata.set(iMeta[0], iMeta[1]);
               });
               _args[0] = metadata;
             }
 
             const newArgs = [firstArg, ..._args];
-            if (typeof newArgs[(newArgs.length - 1)] !== 'function') {
+            if (typeof newArgs[newArgs.length - 1] !== 'function') {
               // wrap with promise if callback is not a function
               return new Promise((resolve, reject) => {
                 serviceClient[fnName](firstArg, metadata, (err, response) => {
@@ -107,12 +124,10 @@ class RPCClient extends RPCService {
   }
 }
 
-module.exports = RPCClient;
-
-/**
- * @typedef  {object} ClientConstructorParams
- * @property {string|string[]}               [protoFile]
- * @property {RPCService.RPCServicePackages} packages
- * @property {boolean}  originalClass Return class instance of RPC Client.
- *                      This is useful if you want more feature, such as events.
- */
+export function initRPCClient(
+  { protoFile, packages }: ClientConstructorParams,
+  opts?: protoLoader.Options,
+): gRPCServiceClients {
+  const rpcClient = new RPCClient({ protoFile, packages }, opts);
+  return rpcClient.clients;
+}

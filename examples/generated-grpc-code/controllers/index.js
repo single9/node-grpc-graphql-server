@@ -1,6 +1,6 @@
 /* eslint-disable global-require */
 /* eslint-disable import/no-dynamic-require */
-const { readDir } = require('../../../libs/tools.js');
+const { readDir } = require('../../../dist/libs/tools.js');
 
 const controller = {};
 const controllerFiles = readDir(__dirname, '.js');

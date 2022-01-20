@@ -1,4 +1,4 @@
-const { RPCServer } = require('../../index.js');
+const { RPCServer } = require('../..');
 const { Hello, Calculator } = require('./controllers');
 
 const rpcServer = new RPCServer({

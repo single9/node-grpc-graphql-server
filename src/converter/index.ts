@@ -1,31 +1,40 @@
-const debug = require('debug')('grpc-gql-server:converter');
-const { type: gqlType } = require('./graphql-type.js');
-const GraphQLGenerator = require('./graphql-generator.js');
-const { recursiveGetPackage, replacePackageName } = require('../libs/tools.js');
+import Debug from 'debug';
+import { GqlType } from './graphql-type';
+import { GraphQLGenerator } from './graphql-generator';
+import { recursiveGetPackage, replacePackageName } from '../libs/tools';
+import GraphQlBlock from './graphql-block';
+
+const debug = Debug('grpc-gql-server:converter');
+
+type TypeField = {
+  name?: string;
+  type?: string;
+  label?: string;
+  typeName?: string;
+};
 
 /**
  * Finder
  * @param {[]} types
  * @param {*} returnType
  */
-function finder(types, returnType, input) {
-  return types.find((val) => input.indexOf(val) > -1) && returnType;
+function finder(types: any[], returnType: any, input: string | any[]) {
+  return types.find((val: any) => input.indexOf(val) > -1) && returnType;
 }
 
 // Finders
 const typeFinders = [
-  (input) => finder(['INT', 'FIXED'], gqlType.Int, input),
-  (input) => finder(['FLOAT', 'DOUBLE'], gqlType.Float, input),
-  (input) => finder(['STRING', 'BYTES'], gqlType.String, input),
-  (input) => finder(['BOOL'], gqlType.Boolean, input),
+  (input: any) => finder(['INT', 'FIXED'], GqlType.Int, input),
+  (input: any) => finder(['FLOAT', 'DOUBLE'], GqlType.Float, input),
+  (input: any) => finder(['STRING', 'BYTES'], GqlType.String, input),
+  (input: any) => finder(['BOOL'], GqlType.Boolean, input),
 ];
 
 /**
  * Find type (factory function)
- * @param {string} input
  * @returns {string} Type function (`Number`|`String`|`Boolean`)
  */
-function findType(input) {
+function findType(input: string): string {
   for (let i = 0; i < typeFinders.length; i++) {
     const typeFinder = typeFinders[i].call(null, input);
     if (typeFinder) return typeFinder;
@@ -35,10 +44,9 @@ function findType(input) {
 
 const Converter = {
   /**
-  * Convert protobufType to GraphQL Type
-  * @param {TypeField} protobufTypeField
-  */
-  type(protobufTypeField) {
+   * Convert protobufType to GraphQL Type
+   */
+  type(protobufTypeField: TypeField) {
     const { label } = protobufTypeField;
     const protobufType = protobufTypeField.type;
     const type = findType(protobufType);
@@ -58,10 +66,21 @@ const Converter = {
   },
 };
 
-function converter(packageObjects, configs) {
+type ConvertOptions = {
+  /** default: false */
+  isInput?: boolean;
+  /** default: false */
+  isEnum?: boolean;
+};
+
+export default function converter(packageObjects: any, configs: any[]) {
   const gqlSchema = new GraphQLGenerator();
 
-  function typeConverter(packageObj, protobufMessageName, opts = {}) {
+  function typeConverter(
+    packageObj: { [x: string]: any },
+    protobufMessageName: string,
+    opts: ConvertOptions = {},
+  ) {
     const { isInput = false, isEnum = false } = opts;
     const protobufMessage = packageObj[protobufMessageName];
 
@@ -69,15 +88,25 @@ function converter(packageObjects, configs) {
 
     const messageType = protobufMessage.type;
     const typeField = messageType.field;
-    const functions = (typeField && typeField.map((field) => ({
-      name: field.name,
-      responseType: Converter.type(field),
-    }))) || (messageType.value && messageType.value.map((val) => ({
-      name: val.name,
-    })));
+    const functions =
+      (typeField &&
+        typeField.map((field: { name: any }) => ({
+          name: field.name,
+          responseType: Converter.type(field),
+        }))) ||
+      (messageType.value &&
+        messageType.value.map((val: { name: any }) => ({
+          name: val.name,
+        })));
 
-    const __messageType = typeField && typeField.filter((field) => field.type === 'TYPE_MESSAGE');
-    const __enumType = typeField && typeField.filter((field) => field.type === 'TYPE_ENUM');
+    const __messageType =
+      typeField &&
+      typeField.filter(
+        (field: { type: string }) => field.type === 'TYPE_MESSAGE',
+      );
+    const __enumType =
+      typeField &&
+      typeField.filter((field: { type: string }) => field.type === 'TYPE_ENUM');
 
     if (__messageType) {
       for (let i = 0; i < __messageType.length; i++) {
@@ -100,9 +129,11 @@ function converter(packageObjects, configs) {
 
         if (!gqlSchema.get(enumTypeName)) {
           const enumBlock = gqlSchema.createEnum(enumTypeName);
-          const fields = enumItem.value && enumItem.value.map((val) => val.name);
+          const fields =
+            enumItem.value &&
+            enumItem.value.map((val: { name: any }) => val.name);
 
-          fields.forEach((field) => {
+          fields.forEach((field: any) => {
             enumBlock.addField(field);
           });
         }
@@ -118,12 +149,13 @@ function converter(packageObjects, configs) {
       else if (isEnum) gqlBlock = gqlSchema.createEnum(protobufMessageName);
       else gqlBlock = gqlSchema.createType(protobufMessageName);
 
-      functions.forEach((fn) => {
+      functions.forEach((fn: { name?: any; responseType?: any }) => {
         const { responseType } = fn;
 
         if (messageType.enumType && responseType) {
-          const findInBlockEnums = messageType.enumType
-            .find((val) => val.name === responseType.type);
+          const findInBlockEnums = messageType.enumType.find(
+            (val: { name: any }) => val.name === responseType.type,
+          );
 
           if (findInBlockEnums) {
             responseType.type = findInBlockEnums.newTypeName;
@@ -143,27 +175,31 @@ function converter(packageObjects, configs) {
     }
   }
 
-  configs.forEach((config) => {
+  configs.forEach((config: { name: any; services: any[] }) => {
     const packageKey = replacePackageName(config.name);
-    const packageObj = recursiveGetPackage(packageKey.split('_'), packageObjects);
+    const packageObj = recursiveGetPackage(
+      packageKey.split('_'),
+      packageObjects,
+    );
     const packageObjKeys = Object.keys(packageObj);
     const queryTypeName = `${packageKey}_query`;
     const mutateTypeName = `${packageKey}_mutate`;
 
     for (let i = 0; i < packageObjKeys.length; i++) {
-      /** @type {GraphQlBlock} */
-      let queryType;
-      /** @type {GraphQlBlock} */
-      let mutateType;
+      let queryType: GraphQlBlock;
+      let mutateType: GraphQlBlock;
       const protosType = packageObjKeys[i];
       if (!('service' in packageObj[protosType])) continue;
 
-      const serviceConfig = config.services.find((service) => service.name === protosType);
+      const serviceConfig = config.services.find(
+        (service: { name: string }) => service.name === protosType,
+      );
       if (!serviceConfig) continue;
 
-      serviceConfig.grpcOnly = serviceConfig.grpcOnly === undefined
-        ? (serviceConfig.mutate === false && serviceConfig.query === false)
-        : serviceConfig.grpcOnly;
+      serviceConfig.grpcOnly =
+        serviceConfig.grpcOnly === undefined
+          ? serviceConfig.mutate === false && serviceConfig.query === false
+          : serviceConfig.grpcOnly;
 
       if (serviceConfig.grpcOnly) continue;
       if (serviceConfig.query !== false) {
@@ -228,18 +264,23 @@ function converter(packageObjects, configs) {
           continue;
         }
 
-        service.requestParams.forEach((param) => {
-          params[param.name] = {
-            type: gqlSchema.get(param.type),
-          };
-        });
+        service.requestParams.forEach(
+          (param: { name: string | number; type: any }) => {
+            params[param.name] = {
+              type: gqlSchema.get(param.type),
+            };
+          },
+        );
 
         if (queryFunctions && queryFunctions.indexOf(service.name) >= 0) {
           debug(`Adding query function: ${service.name}`);
           protoGqlTypeQuery.addFieldWithParams(service.name, params, {
             type: gqlSchema.get(service.responseType),
           });
-        } else if (mutateFunctions && mutateFunctions.indexOf(service.name) >= 0) {
+        } else if (
+          mutateFunctions &&
+          mutateFunctions.indexOf(service.name) >= 0
+        ) {
           debug(`Adding mutate function: ${service.name}`);
           protoGqlTypeMutate.addFieldWithParams(service.name, params, {
             type: gqlSchema.get(service.responseType),
@@ -263,7 +304,9 @@ function converter(packageObjects, configs) {
       }
 
       if (mutateType) {
-        debug(`Adding mutate type -> ${protosType}: ${protoGqlTypeMutate.name}`);
+        debug(
+          `Adding mutate type -> ${protosType}: ${protoGqlTypeMutate.name}`,
+        );
         mutateType.addField(protosType, {
           type: protoGqlTypeMutate,
         });
@@ -273,12 +316,3 @@ function converter(packageObjects, configs) {
 
   return gqlSchema.toGql();
 }
-
-module.exports = converter;
-
-/**
- * @typedef {object} TypeField
- * @property {string} name
- * @property {string} type
- * @property {string} label
- */
