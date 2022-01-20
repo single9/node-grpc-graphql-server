@@ -2,7 +2,7 @@ import express from 'express';
 import { request, gql } from 'graphql-request';
 import { Server } from 'http';
 import { RPCServer, initRPCClient, gRPCServiceClients } from '../src';
-import Hello from '../examples/helloworld/controllers/helloworld.js';
+import Hello from './sample/hello';
 
 const app = express();
 
@@ -15,7 +15,7 @@ describe('Test gRPC-GraphQL Server', () => {
     hello: new Hello(),
   };
 
-  it('should start grpc server', (done) => {
+  it('should start gRPC server with GraphQL', (done) => {
     rpcServer = new RPCServer({
       graphql: true,
       port: 50052,
@@ -69,9 +69,31 @@ describe('Test gRPC-GraphQL Server', () => {
   });
 
   it('should call `SayHello` and receive data (callback)', (done) => {
-    rpcClient.helloworld.Greeter.SayHelloAgain(
-      { name: 'test again' },
+    rpcClient.helloworld.Greeter.SayHello({ name: 'test' }, (err, response) => {
+      expect(err).toBeNull();
+      expect(response).toBeDefined();
+      done();
+    });
+  });
+
+  it('should call `SayNested` and receive data (callback)', (done) => {
+    rpcClient.helloworld.Greeter.SayNested((err, response) => {
+      expect(err).toBeNull();
+      expect(response).toBeDefined();
+      done();
+    });
+  });
+
+  it('should call `SayHello` with metadata and receive data (callback)', (done) => {
+    rpcClient.helloworld.Greeter.SayHello(
+      {
+        name: 'Test',
+      },
+      {
+        metadata: [['time', Date.now()]],
+      },
       (err, response) => {
+        console.log(response);
         expect(err).toBeNull();
         expect(response).toBeDefined();
         done();
@@ -136,9 +158,16 @@ describe('Test gRPC-GraphQL Server', () => {
     );
   });
 
+  it('should close RPC Client', (done) => {
+    rpcClient.helloworld.Greeter.close();
+    done();
+  });
+
+  it('should try shutdown RPC Server', async () => {
+    await rpcServer.tryShutdown();
+  });
+
   afterAll(() => {
     server.close();
-    rpcClient.helloworld.Greeter.close();
-    rpcServer.tryShutdown();
   });
 });
