@@ -15,9 +15,9 @@ import {
 
 const debug = Debug('grpc-gql-server:rpc-service');
 
-export interface ServicesDescriptor {
+export interface IServicesDescriptor {
   /** Service name */
-  name: string;
+  name?: string;
   /** Service implementation (controller) */
   implementation:
     | any
@@ -34,6 +34,16 @@ export interface ServicesDescriptor {
   grpcOnly?: boolean;
 }
 
+export interface ServicesDescriptor extends IServicesDescriptor {
+  /** Service name */
+  name: string;
+}
+
+export interface ObjServicesDescriptor extends IServicesDescriptor {
+  /** Service name */
+  name?: string;
+}
+
 export interface ClientServicesDescriptor {
   /** Service name */
   name?: string;
@@ -47,7 +57,7 @@ export interface ClientServicesDescriptor {
 
 export type PackageDescriptorObj = {
   [packageName: string]: {
-    [serviceName: string]: ServicesDescriptor & { name?: string };
+    [serviceName: string]: ObjServicesDescriptor;
   };
 };
 
@@ -140,7 +150,12 @@ export type gRPCServiceClientServiceFn = {
  * gRPC Client Service Function Call.
  */
 interface ClientCallFunction {
-  (req?: object, callback?: CallFunctionCallback): Promise<any>;
+  (req?: { [x: string]: any }, callback?: CallFunctionCallback): Promise<any>;
+  (
+    req?: { [x: string]: any },
+    opts?: undefined | { metadata?: Array<[string, any]> },
+    callback?: CallFunctionCallback,
+  ): Promise<any>;
 }
 
 /**
