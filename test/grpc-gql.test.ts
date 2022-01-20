@@ -93,7 +93,6 @@ describe('Test gRPC-GraphQL Server', () => {
         metadata: [['time', Date.now()]],
       },
       (err, response) => {
-        console.log(response);
         expect(err).toBeNull();
         expect(response).toBeDefined();
         done();
