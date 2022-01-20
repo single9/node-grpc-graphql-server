@@ -1,23 +1,44 @@
 name: test
 
 on:
+  workflow_call:
   push:
     branches:
+      - ci-test
       - main
       - develop
+      - 'dev/*'
       - 'feature/*'
       - 'fix/*'
-  pull_request:
-    branches:
-      - main
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [12.x, 14.x, 16.x]
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v1
+      - name: Checkout repository
+        uses: actions/checkout@v2
         with:
-          node-version: 12
-      - run: npm install -D
-      - run: npm test
+          fetch-depth: 2
+
+      - name: Set up Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v1
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Install Yarn
+        run: npm install -g yarn
+
+      - name: Install dependencies
+        run: yarn
+
+      - name: Build package
+        run: yarn build
+
+      - name: Run tests
+        run: yarn test:coverage
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v1

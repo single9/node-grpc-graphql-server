@@ -9,6 +9,7 @@
     "test:coverage": "jest --coverage",
     "lint": "eslint --fix .",
     "lint:fix": "eslint --fix",
+    "build": "tsc",
     "prepack": "tsc"
   },
   "keywords": [
@@ -74,7 +75,6 @@
       "src/**/*.(t|j)s"
     ],
     "coverageDirectory": "./coverage",
-    "coverageReporters": ["json", "html"],
     "coverageThreshold": {
       "global": {
         "lines": 80
