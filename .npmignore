@@ -1,4 +1,10 @@
+.husky
 .eslintrc
+.gitmessage
+.lintstagedrc
+.prettierrc
+tsconfig.json
 .github/
 examples/
 test/
+src/
