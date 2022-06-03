@@ -393,7 +393,7 @@ const client = initRPCClient({
   originalClass: true,
 });
 
-client.om("grpc_client_error", (err) => console.log(err));
+client.on("grpc_client_error", (err) => console.log(err));
 ```
 
 ### Event: Server
