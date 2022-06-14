@@ -64,11 +64,13 @@ function blockDataHelper(
       ? opts.repeated
       : false;
 
+  const nullable = opts.nullable !== undefined && opts.nullable;
+
   return {
     responseType: _responseType,
     params,
     repeated,
-    nullable: opts.nullable && opts.nullable === true,
+    nullable,
   };
 }
 
