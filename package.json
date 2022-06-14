@@ -46,7 +46,7 @@
     "express": "^4.17.1",
     "google-protobuf": "^3.16.0",
     "graphql": "^14.7.0",
-    "graphql-request": "^3.3.0",
+    "graphql-request": "^4.3.0",
     "grpc-tools": "^1.11.2",
     "husky": "^7.0.4",
     "jest": "^27.4.7",
