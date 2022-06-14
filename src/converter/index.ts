@@ -1,8 +1,9 @@
 import Debug from 'debug';
 import { GqlType } from './graphql-type';
 import { GraphQLGenerator } from './graphql-generator';
-import { recursiveGetPackage, replacePackageName } from '../libs/tools';
 import GraphQlBlock from './graphql-block';
+import { recursiveGetPackage, replacePackageName } from '../libs/tools';
+import { RPCServicePackages } from '../libs/rpc-service';
 
 const debug = Debug('grpc-gql-server:converter');
 
@@ -73,7 +74,10 @@ type ConvertOptions = {
   isEnum?: boolean;
 };
 
-export default function converter(packageObjects: any, configs: any[]) {
+export default function converter(
+  packageObjects: any,
+  configs: RPCServicePackages[],
+) {
   const gqlSchema = new GraphQLGenerator();
 
   function typeConverter(

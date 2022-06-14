@@ -18,8 +18,8 @@ const debug = Debug('grpc-gql-server:rpc-service');
 export interface IServicesDescriptor {
   /** Service name */
   name?: string;
-  /** Service implementation (controller) */
-  implementation:
+  /** Service implementation (controller). This is not required in client. */
+  implementation?:
     | any
     | {
         [x: string]: (
@@ -184,7 +184,7 @@ type PackageObject = {
 
 export class RPCService extends EventEmitter {
   extServices: any;
-  packages: any;
+  packages: RPCServicePackages[];
   clients: gRPCServiceClients;
   grpcServer: any;
   packageObject: PackageObject;
@@ -208,7 +208,6 @@ export class RPCService extends EventEmitter {
     } = grpcParams;
 
     this.extServices = extServices || [];
-    this.packages = packages;
     this.clients = {};
     this.grpcServer = grpcServer;
     /** @type {Object<string, grpc.GrpcObject|grpc.Client|grpc.ProtobufMessage>} */
@@ -280,7 +279,7 @@ export class RPCService extends EventEmitter {
 
     if (packages) {
       // map object to array
-      this.__init_packages_mapping();
+      this.packages = this.__init_packages_mapping(packages);
       // do initialize
       this.init();
     } else {
@@ -322,7 +321,7 @@ export class RPCService extends EventEmitter {
       if (this.grpcServer) {
         // gRPC server mode
         // If service implementation is missing, give it an empty object.
-        pack.services.forEach((service) => {
+        pack.services.forEach((service: any) => {
           this.grpcServer.addService(
             packageObject[service.name].service,
             service.implementation || {},
@@ -341,18 +340,21 @@ export class RPCService extends EventEmitter {
     });
   }
 
-  __init_packages_mapping() {
-    if (
-      Array.isArray(this.packages) === false &&
-      typeof this.packages === 'object'
-    ) {
+  private __init_packages_mapping(
+    packages:
+      | PackageDescriptorObj
+      | ClientPackageDescriptorObj
+      | RPCServicePackages[],
+  ): RPCServicePackages[] {
+    if (Array.isArray(packages) === false && typeof packages === 'object') {
       const newPackages = [];
-      const packageKeys = Object.keys(this.packages);
+      const packageKeys = Object.keys(packages);
+
       packageKeys.forEach((pack) => {
         const newServices = [];
-        const servicesKeys = Object.keys(this.packages[pack]);
+        const servicesKeys = Object.keys(packages[pack]);
         servicesKeys.forEach((service) => {
-          const serviceObj = { ...this.packages[pack][service] };
+          const serviceObj = { ...packages[pack][service] };
           serviceObj.name = service;
           newServices.push(serviceObj);
         });
@@ -361,8 +363,11 @@ export class RPCService extends EventEmitter {
           services: newServices,
         });
       });
-      this.packages = newPackages;
+
+      return newPackages;
     }
+
+    return packages as RPCServicePackages[];
   }
 }
 

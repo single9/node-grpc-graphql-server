@@ -10,6 +10,7 @@ describe('Test gRPC-GraphQL Server', () => {
 
   it('should start gRPC server without GraphQL', (done) => {
     rpcServer = new RPCServer({
+      port: 0,
       graphql: false,
       grpc: {
         protoFile: `${__dirname}/../examples/protos/hello.proto`,
@@ -30,7 +31,7 @@ describe('Test gRPC-GraphQL Server', () => {
     expect(rpcServer).toBeDefined();
 
     rpcServer.once('grpc_server_started', async (payload) => {
-      expect(payload.port).toEqual(50051);
+      expect(payload.port).toBeDefined();
       done();
     });
   });
