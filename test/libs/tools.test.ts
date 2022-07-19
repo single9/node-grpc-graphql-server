@@ -162,6 +162,6 @@ describe('Test libs/tools', () => {
   });
 
   afterAll(() => {
-    fs.rmdirSync(`${__dirname}/tmp`, { recursive: true });
+    fs.rmSync(`${__dirname}/tmp`, { recursive: true });
   });
 });
