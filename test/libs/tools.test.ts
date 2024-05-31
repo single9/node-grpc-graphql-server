@@ -19,11 +19,11 @@ describe('Test libs/tools', () => {
   });
 
   it('should throw error if path or extname is not specified', () => {
-    expect(() => tools.readDir(null, '.js')).toThrowError(
+    expect(() => tools.readDir(null as unknown as string, '.js')).toThrowError(
       '`dir` must be specified.',
     );
 
-    expect(() => tools.readDir('test', null)).toThrowError(
+    expect(() => tools.readDir('test', null as unknown as string)).toThrowError(
       '`extname` must be specified.',
     );
   });
@@ -162,6 +162,6 @@ describe('Test libs/tools', () => {
   });
 
   afterAll(() => {
-    fs.rmdirSync(`${__dirname}/tmp`, { recursive: true });
+    fs.rmSync(`${__dirname}/tmp`, { recursive: true });
   });
 });

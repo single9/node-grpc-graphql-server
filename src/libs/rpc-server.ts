@@ -57,7 +57,6 @@ export class RPCServer extends EventEmitter {
       creds || grpc.ServerCredentials.createInsecure(),
       (err: any, grpcPort: any) => {
         if (err) throw err;
-        this.rpcService.grpcServer.start();
         this.port = grpcPort;
         this.emit('grpc_server_started', { ip, port: grpcPort });
       },
