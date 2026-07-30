@@ -59,8 +59,8 @@ export class RPCClient extends RPCService {
         const newFunctions = { ...serviceClient };
 
         Object.assign(newFunctions, {
-          close: serviceClient.close,
-          getChannel: serviceClient.getChannel,
+          close: serviceClient.close.bind(serviceClient),
+          getChannel: serviceClient.getChannel.bind(serviceClient),
         });
 
         serviceFunctionsKey.forEach((fnName) => {
