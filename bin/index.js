@@ -1,16 +1,12 @@
 #!/usr/bin/env node
 
-const { RPCServer } = require('../index.js');
+const { genGrpcJs } = require('..');
 
 function init(protoFile, outDir) {
-  return new RPCServer({
-    grpc: {
-      protoFile,
-      generatedCode: {
-        outDir,
-      },
-    },
-  });
+  if (!protoFile || !outDir) {
+    throw new Error('Usage: grpc-graphql-server init <proto_dir> <out_dir>');
+  }
+  return genGrpcJs(protoFile, outDir);
 }
 
 const { argv } = process;
@@ -24,6 +20,5 @@ switch (command) {
     break;
   default:
     console.log(`Unknown command: ${command}`);
+    process.exit(1);
 }
-
-process.exit(0);
