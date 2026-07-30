@@ -165,4 +165,53 @@ describe('Test converter', () => {
 
     done();
   });
+
+  it('should not throw when query/mutate is set to boolean true', (done) => {
+    expect(() =>
+      converter(packageDefinitionObjects, [
+        {
+          name: 'helloworld',
+          services: [
+            {
+              name: 'Greeter',
+              mutate: true,
+            },
+          ],
+        },
+      ]),
+    ).not.toThrow();
+    done();
+  });
+
+  it('should support query/mutate as an allow-list of method names', (done) => {
+    const gqlSchema = converter(packageDefinitionObjects, [
+      {
+        name: 'helloworld',
+        services: [
+          {
+            name: 'Greeter',
+            query: ['SayHello'],
+            mutate: ['SayHello'],
+          },
+        ],
+      },
+    ]);
+
+    const gqlDefinition = gql`
+      ${gqlSchema}
+    `;
+
+    expect(
+      gqlDefinition.definitions.find(
+        (def) => def['name']['value'] === 'Greeter_query',
+      ),
+    ).toBeTruthy();
+
+    expect(
+      gqlDefinition.definitions.find(
+        (def) => def['name']['value'] === 'Greeter_mutate',
+      ),
+    ).toBeTruthy();
+    done();
+  });
 });

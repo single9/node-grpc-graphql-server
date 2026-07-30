@@ -276,13 +276,16 @@ export default function converter(
           },
         );
 
-        if (queryFunctions && queryFunctions.indexOf(service.name) >= 0) {
+        if (
+          Array.isArray(queryFunctions) &&
+          queryFunctions.indexOf(service.name) >= 0
+        ) {
           debug(`Adding query function: ${service.name}`);
           protoGqlTypeQuery.addFieldWithParams(service.name, params, {
             type: gqlSchema.get(service.responseType),
           });
         } else if (
-          mutateFunctions &&
+          Array.isArray(mutateFunctions) &&
           mutateFunctions.indexOf(service.name) >= 0
         ) {
           debug(`Adding mutate function: ${service.name}`);

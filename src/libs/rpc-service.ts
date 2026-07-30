@@ -27,11 +27,13 @@ export interface IServicesDescriptor {
           callback: (err: Error, data: any) => void,
         ) => void;
       };
-  /** (GraphQL mutation) Is it can be mutated? default: false */
-  mutate?: boolean;
-  /** (GraphQL query) Is it can be queried? default: true */
-  query?: boolean;
+  /** (GraphQL mutation) Is it can be mutated? Pass an array of method names to only mutate those. default: false */
+  mutate?: boolean | string[];
+  /** (GraphQL query) Is it can be queried? Pass an array of method names to only query those. default: true */
+  query?: boolean | string[];
   grpcOnly?: boolean;
+  /** List of method names to exclude from GraphQL entirely */
+  exclude?: string[];
 }
 
 export interface ServicesDescriptor extends IServicesDescriptor {
