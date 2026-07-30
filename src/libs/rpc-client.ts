@@ -46,7 +46,7 @@ export class RPCClient extends RPCService {
           this.clients[packageName] = {};
         }
         _service.host = _service.host || 'localhost';
-        _service.port = _service.port || '50051';
+        _service.port = _service.port || 50051;
         const host = `${_service.host}:${_service.port}`;
         const serviceFunctionsKey = Object.keys(
           packageObject[_service.name].service,
