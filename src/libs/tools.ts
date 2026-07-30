@@ -211,7 +211,7 @@ export function genGrpcJs(
   }
 
   // generate grpc module index file
-  let tempExportStr = '\nmodule.exprts = {\n\tproto,\n<exports>\n};\n';
+  let tempExportStr = '\nmodule.exports = {\n\tproto,\n<exports>\n};\n';
   let exportModule = '';
 
   for (let i = 0; i < indexModuleName.length; i++) {
