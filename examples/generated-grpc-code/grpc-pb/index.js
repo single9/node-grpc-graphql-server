@@ -4,8 +4,7 @@
 const calculatorGrpcPb = require('./calculator_grpc_pb.js');
 const helloGrpcPb = require('./hello_grpc_pb.js');
 
-module.exprts = {
-	proto,
+module.exports = {
 	calculatorGrpcPb,
 	helloGrpcPb,
 };
