@@ -224,6 +224,8 @@ export class RPCService extends EventEmitter {
       );
     }
 
+    let isCodegenOnly = false;
+
     if (
       protoFile &&
       !Array.isArray(protoFile) &&
@@ -232,26 +234,13 @@ export class RPCService extends EventEmitter {
       _protoFile = readProtofiles(protoFile);
       // generate grpc js code
       if (!graphql && generatedCode) {
-        let grpcCodeFiles;
-
         if (!generatedCode.outDir) throw new Error('outDir is required');
-        if (!packages) {
-          grpcCodeFiles = genGrpcJs(protoFile, generatedCode.outDir);
 
-          // define generated service
-          this.generatedGrpcService = {};
-          // require all generated grpc js module
-          grpcCodeFiles.services.forEach((grpcFile) => {
-            const tmpService = require(grpcFile);
-            this.generatedGrpcService = Object.assign(
-              this.generatedGrpcService,
-              tmpService,
-            );
-          });
-          return undefined;
-        }
+        isCodegenOnly = !packages;
+        const grpcCodeFiles = packages
+          ? getGrpcJsFiles(generatedCode.outDir)
+          : genGrpcJs(protoFile, generatedCode.outDir);
 
-        grpcCodeFiles = getGrpcJsFiles(generatedCode.outDir);
         // define generated service
         this.generatedGrpcService = {};
         // require all generated grpc js module
@@ -266,6 +255,11 @@ export class RPCService extends EventEmitter {
     } else if (!protoFile) {
       throw new Error('No proto file provided');
     }
+
+    // Pure codegen mode: gRPC JS runtime was generated above and there's no
+    // `packages` definition to load a server/client from, so there's nothing
+    // left to initialize.
+    if (isCodegenOnly) return;
 
     // load protobuf
     this.packageDefinition = protoLoader.loadSync(
