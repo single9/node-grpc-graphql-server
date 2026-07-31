@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package streaming;
+
+message Req {
+  string q = 1;
+}
+
+message Res {
+  string a = 1;
+}
+
+service StreamSvc {
+  rpc Unary(Req) returns (Res) {}
+  rpc ServerStream(Req) returns (stream Res) {}
+  rpc ClientStream(stream Req) returns (Res) {}
+  rpc BidiStream(stream Req) returns (stream Res) {}
+}

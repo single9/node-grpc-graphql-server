@@ -2,7 +2,11 @@ import Debug from 'debug';
 import { GqlType } from './graphql-type';
 import { GraphQLGenerator } from './graphql-generator';
 import GraphQlBlock from './graphql-block';
-import { recursiveGetPackage, replacePackageName } from '../libs/tools';
+import {
+  recursiveGetPackage,
+  replacePackageName,
+  subscriptionFieldName,
+} from '../libs/tools';
 import { RPCServicePackages } from '../libs/rpc-service';
 
 const debug = Debug('grpc-gql-server:converter');
@@ -318,26 +322,21 @@ export default function converter(
           : serviceConfig.grpcOnly;
 
       if (serviceConfig.grpcOnly) continue;
+      // Wiring `<package>_query`/`<package>_mutate` into the root
+      // Query/Mutation type is deferred until every service in this package
+      // has been processed (below) -- a package whose services turn out to
+      // contribute zero query/mutate fields (e.g. entirely
+      // streaming/grpcOnly) must not be wired in at all, or it'd be a
+      // dangling reference: `toGql()` doesn't emit an empty type, but the
+      // root field referencing it would still be emitted.
       if (serviceConfig.query !== false) {
-        queryType = gqlSchema.get(queryTypeName);
-
-        if (!queryType) {
-          queryType = gqlSchema.createType(queryTypeName);
-          gqlSchema.addToQuery(packageKey, null, {
-            type: queryType,
-          });
-        }
+        queryType =
+          gqlSchema.get(queryTypeName) || gqlSchema.createType(queryTypeName);
       }
 
       if (serviceConfig.mutate !== false) {
-        mutateType = gqlSchema.get(mutateTypeName);
-
-        if (!mutateType) {
-          mutateType = gqlSchema.createType(mutateTypeName);
-          gqlSchema.addToMutation(packageKey, null, {
-            type: mutateType,
-          });
-        }
+        mutateType =
+          gqlSchema.get(mutateTypeName) || gqlSchema.createType(mutateTypeName);
       }
 
       // service type
@@ -369,10 +368,33 @@ export default function converter(
         return typeName;
       };
 
+      const excludedTypes = serviceConfig.exclude;
+      const queryFunctions = serviceConfig.query;
+      const mutateFunctions = serviceConfig.mutate;
+
       for (let j = 0; j < serviceKeys.length; j++) {
         const service = serviceKeys[j];
         const serviceName = service;
         const serviceObj = packageObj[protosType].service[service];
+
+        if (excludedTypes && excludedTypes.indexOf(serviceName) >= 0) {
+          continue;
+        }
+
+        // Client-streaming / bidi-streaming RPCs have no GraphQL equivalent
+        // -- GraphQL has no way to feed a stream of values into a single
+        // field call. They stay fully callable over plain gRPC (see
+        // rpc-service.ts's unconditional `addService`); they're just not
+        // representable in the generated schema.
+        if (serviceObj.requestStream) {
+          debug(
+            `Skipping '${serviceName}' from GraphQL: ${
+              serviceObj.responseStream ? 'bidi' : 'client'
+            }-streaming RPCs have no GraphQL equivalent`,
+          );
+          continue;
+        }
+
         const requestTypeName = convertRpcMessageType(
           serviceObj.requestType,
           true,
@@ -381,32 +403,42 @@ export default function converter(
           serviceObj.responseType,
           false,
         );
+        const requestParams = [{ name: 'request', type: requestTypeName }];
+
+        // Server-streaming RPCs aren't a query or a mutation -- they're
+        // exposed as a GraphQL Subscription instead, and (unlike
+        // Query/Mutation) a Subscription field must be a direct child of the
+        // `Subscription` type, so it can't be nested under a package/service
+        // wrapper type the way query/mutate fields are below.
+        if (serviceObj.responseStream) {
+          debug(`Adding subscription function: ${serviceName}`);
+          const params = {};
+
+          requestParams.forEach((param) => {
+            params[param.name] = { type: gqlSchema.getTypeRef(param.type) };
+          });
+
+          gqlSchema.addToSubscription(
+            subscriptionFieldName(config.name, protosType, serviceName),
+            params,
+            { type: gqlSchema.getTypeRef(responseTypeName) },
+          );
+          continue;
+        }
 
         serviceType.push({
           name: serviceName,
-          requestParams: [
-            {
-              name: 'request',
-              type: requestTypeName,
-            },
-          ],
+          requestParams,
           responseType: responseTypeName,
         });
       }
 
-      const excludedTypes = serviceConfig.exclude;
-      const queryFunctions = serviceConfig.query;
-      const mutateFunctions = serviceConfig.mutate;
       const protoGqlTypeQuery = gqlSchema.createType(`${protosType}_query`);
       const protoGqlTypeMutate = gqlSchema.createType(`${protosType}_mutate`);
 
       for (let k = 0; k < serviceType.length; k++) {
         const service = serviceType[k];
         const params = {};
-
-        if (excludedTypes && excludedTypes.indexOf(service.name) >= 0) {
-          continue;
-        }
 
         service.requestParams.forEach(
           (param: { name: string | number; type: any }) => {
@@ -443,14 +475,19 @@ export default function converter(
         }
       }
 
-      if (queryType) {
+      // A service made up entirely of streaming/excluded methods leaves
+      // these with zero fields; `GraphQLGenerator#toGql()` doesn't emit an
+      // empty type (same rule it already applies to Query/Mutation/
+      // Subscription themselves), so attaching it anyway would leave a
+      // dangling reference to a type that was never defined.
+      if (queryType && protoGqlTypeQuery.listFields().length > 0) {
         debug(`Adding query type -> ${protosType}: ${protoGqlTypeQuery.name}`);
         queryType.addField(protosType, {
           type: protoGqlTypeQuery,
         });
       }
 
-      if (mutateType) {
+      if (mutateType && protoGqlTypeMutate.listFields().length > 0) {
         debug(
           `Adding mutate type -> ${protosType}: ${protoGqlTypeMutate.name}`,
         );
@@ -458,6 +495,20 @@ export default function converter(
           type: protoGqlTypeMutate,
         });
       }
+    }
+
+    // Now that every service in this package has been processed, wire
+    // `<package>_query`/`<package>_mutate` into the root Query/Mutation --
+    // but only if a service actually ended up contributing a field to it
+    // (see the comment above), otherwise leave it unwired entirely.
+    const finalQueryType = gqlSchema.get(queryTypeName);
+    if (finalQueryType && finalQueryType.listFields().length > 0) {
+      gqlSchema.addToQuery(packageKey, null, { type: finalQueryType });
+    }
+
+    const finalMutateType = gqlSchema.get(mutateTypeName);
+    if (finalMutateType && finalMutateType.listFields().length > 0) {
+      gqlSchema.addToMutation(packageKey, null, { type: finalMutateType });
     }
   });
 

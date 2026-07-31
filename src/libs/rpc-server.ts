@@ -1,9 +1,11 @@
 import fs from 'fs';
+import * as http from 'http';
 import * as grpc from '@grpc/grpc-js';
 import { EventEmitter } from 'events';
 import RPCService, { RPCServiceGrpcParams, ParamGraphql } from './rpc-service';
 import { genResolvers, readDir } from './tools';
 import { wellKnownScalars } from '../converter/scalars';
+import { genSubscriptionResolvers } from './streaming';
 
 type GqlConfigs = {
   logger: any;
@@ -38,6 +40,12 @@ export class RPCServer extends EventEmitter {
   forceShutdown: () => any;
   tryShutdown: () => Promise<unknown>;
   gqlConfigs: GqlConfigs;
+  /**
+   * `PubSubEngine` backing server-streaming RPCs exposed as GraphQL
+   * Subscriptions. Only set if the schema actually has a `Subscription`
+   * field (i.e. at least one server-streaming RPC was converted).
+   */
+  pubsub: any;
 
   constructor({
     ip = '0.0.0.0',
@@ -99,6 +107,7 @@ export class RPCServer extends EventEmitter {
       introspection,
       apolloConfig,
       logger,
+      pubsub,
     } = graphql;
 
     const auto = graphql.auto !== undefined ? graphql.auto : true;
@@ -173,6 +182,25 @@ export class RPCServer extends EventEmitter {
       registerResolvers.push(usedScalarResolvers);
     }
 
+    // The converter only emits `extend type Subscription { ... }` when at
+    // least one server-streaming RPC was converted; only stand up a PubSub
+    // and its resolvers in that case.
+    if (/extend type Subscription \{/.test(gqlSchema)) {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { PubSub } = require('graphql-subscriptions');
+      this.pubsub = pubsub || new PubSub();
+
+      if (auto) {
+        registerResolvers.push(
+          genSubscriptionResolvers(
+            this.rpcService.packages,
+            this.rpcService.packageObject,
+            this.pubsub,
+          ),
+        );
+      }
+    }
+
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { makeExecutableSchema } = require('@graphql-tools/schema');
 
@@ -186,11 +214,51 @@ export class RPCServer extends EventEmitter {
       typeDefs: registerTypes,
       resolvers: registerResolvers,
       logger,
+      // The auto-generated Query/Mutation resolvers (`genResolvers`) are
+      // built per-package from the config, independently of the schema the
+      // converter actually emits -- a package whose only service(s)
+      // contribute nothing to Query/Mutation (e.g. entirely
+      // server-streaming) still gets an (unreachable, harmless) resolver
+      // entry for it. Warn instead of hard-failing on that specific,
+      // narrow mismatch rather than crashing server startup over a
+      // resolver nothing will ever call.
+      resolverValidationOptions: { requireResolversToMatchSchema: 'warn' },
     });
 
     this.gqlConfigs = Object.assign(this.gqlConfigs, apolloConfig);
     this.gqlContext = context;
     this.gqlServer = new ApolloServer(this.gqlConfigs);
+  }
+
+  /**
+   * Wire up GraphQL Subscriptions over WebSocket (`graphql-ws`), attached to
+   * an `http.Server` you already own — the same one you get back from
+   * `app.listen()`. Apollo Server 4 dropped built-in subscription transport,
+   * so this is required for any `Subscription` fields (server-streaming
+   * RPCs) to be reachable; the HTTP endpoint alone can't serve them.
+   *
+   * Mirrors the existing "bring your own Express app, call
+   * `expressMiddleware` yourself" pattern used for the HTTP endpoint.
+   */
+  useSubscriptions(httpServer: http.Server, opts: { path?: string } = {}) {
+    if (!this.gqlConfigs || !this.gqlConfigs.schema) {
+      throw new Error('GraphQL is not enabled');
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { WebSocketServer } = require('ws');
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { useServer } = require('graphql-ws/use/ws');
+
+    const wsServer = new WebSocketServer({
+      server: httpServer,
+      path: opts.path || '/graphql',
+    });
+
+    return useServer(
+      { schema: this.gqlConfigs.schema, context: this.gqlContext },
+      wsServer,
+    );
   }
 }
 

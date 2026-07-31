@@ -123,6 +123,14 @@ export type ParamGraphql = {
   /** Reference to `ApolloServerOptions` from `@apollo/server` */
   apolloConfig?: any;
   auto?: boolean;
+  /**
+   * `PubSubEngine` instance (from `graphql-subscriptions`) used to back
+   * server-streaming RPCs exposed as GraphQL Subscriptions. Defaults to an
+   * in-memory `PubSub`. Provide your own (e.g. a Redis-backed engine) if
+   * you're running multiple server instances and a stream's writer and a
+   * subscriber's WebSocket connection might land on different instances.
+   */
+  pubsub?: any;
 };
 
 /**
