@@ -109,16 +109,18 @@ export type ParamGraphql = {
   /** Path of yours GraphQL schemas */
   schemaPath?: string | string[];
   resolverPath?: string | string[];
+  /**
+   * Context function for the GraphQL server. Not passed to the `ApolloServer`
+   * constructor (Apollo Server 4 no longer accepts `context` there) — instead
+   * it's exposed as `RPCServer#gqlContext` for you to pass to
+   * `expressMiddleware(server, { context })` yourself.
+   */
   context?: () => any;
   formatError?: (error: any) => any;
   introspection?: any;
   /** Logger for GraphQL server */
   logger?: any;
-  /**
-   * Reference: https://www.apollographql.com/docs/apollo-server/testing/graphql-playground/#configuring-playground
-   */
-  playground?: boolean | Playground;
-  /** Reference to `ApolloServerExpress.ApolloServerExpressConfig` */
+  /** Reference to `ApolloServerOptions` from `@apollo/server` */
   apolloConfig?: any;
   auto?: boolean;
 };
@@ -173,11 +175,6 @@ interface CallFunctionCallback {
 type ParamExtService = {
   service: grpc.ServiceDefinition;
   implementation: grpc.UntypedServiceImplementation;
-};
-
-type Playground = {
-  settings?: any;
-  tabs?: any[];
 };
 
 type PackageObject = {

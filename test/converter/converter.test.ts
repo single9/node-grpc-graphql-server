@@ -1,6 +1,6 @@
 import * as grpc from '@grpc/grpc-js';
 import * as protoLoader from '@grpc/proto-loader';
-import { gql } from 'apollo-server-express';
+import { parse } from 'graphql';
 import { PackageDefinition } from '@grpc/grpc-js/build/src/make-client';
 import { readProtofiles } from '../../src/libs/tools';
 import converter from '../../src/converter/index';
@@ -28,9 +28,7 @@ describe('Test converter', () => {
       },
     ]);
 
-    const gqlDefinition = gql`
-      ${gqlSchema}
-    `;
+    const gqlDefinition = parse(gqlSchema);
 
     expect(
       gqlDefinition.definitions.find(
@@ -74,9 +72,7 @@ describe('Test converter', () => {
       },
     ]);
 
-    const gqlDefinition = gql`
-      ${gqlSchema}
-    `;
+    const gqlDefinition = parse(gqlSchema);
 
     expect(
       gqlDefinition.definitions.find(
@@ -135,9 +131,7 @@ describe('Test converter', () => {
       },
     ]);
 
-    const gqlDefinition = gql`
-      ${gqlSchema}
-    `;
+    const gqlDefinition = parse(gqlSchema);
 
     expect(
       gqlDefinition.definitions.find(
@@ -197,9 +191,7 @@ describe('Test converter', () => {
       },
     ]);
 
-    const gqlDefinition = gql`
-      ${gqlSchema}
-    `;
+    const gqlDefinition = parse(gqlSchema);
 
     expect(
       gqlDefinition.definitions.find(

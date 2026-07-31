@@ -1,4 +1,5 @@
 import express from 'express';
+import { expressMiddleware } from '@apollo/server/express4';
 import { request, gql } from 'graphql-request';
 import { Server } from 'http';
 import { RPCServer, initRPCClient, gRPCServiceClients } from '../src';
@@ -35,11 +36,18 @@ describe('Test gRPC-GraphQL Server', () => {
       },
     });
 
-    if (rpcServer.gqlServer) {
-      rpcServer.gqlServer.applyMiddleware({ app });
-    }
-
     rpcServer.once('grpc_server_started', async () => {
+      if (rpcServer.gqlServer) {
+        await rpcServer.gqlServer.start();
+        app.use(
+          '/graphql',
+          express.json(),
+          expressMiddleware(rpcServer.gqlServer, {
+            context: rpcServer.gqlContext,
+          }),
+        );
+      }
+
       server = app.listen(3344, () => {
         done();
       });
@@ -166,7 +174,8 @@ describe('Test gRPC-GraphQL Server', () => {
     await rpcServer.tryShutdown();
   });
 
-  afterAll(() => {
+  afterAll(async () => {
+    await rpcServer.gqlServer?.stop();
     server.close();
   });
 });

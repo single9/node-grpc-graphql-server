@@ -6,9 +6,7 @@ import { genResolvers, readDir } from './tools';
 
 type GqlConfigs = {
   logger: any;
-  context: any;
   formatError: any;
-  playground: any;
   introspection: any;
   schema?: any;
 };
@@ -20,7 +18,6 @@ function initDefaultGqlConfigs(): ParamGraphql {
     resolverPath: undefined,
     context: undefined,
     formatError: undefined,
-    playground: undefined,
     introspection: undefined,
     apolloConfig: undefined,
     logger: undefined,
@@ -29,6 +26,12 @@ function initDefaultGqlConfigs(): ParamGraphql {
 
 export class RPCServer extends EventEmitter {
   gqlServer: any;
+  /**
+   * Context function from `graphql.context`. Apollo Server 4 no longer
+   * accepts `context` in its constructor, so pass this yourself to
+   * `expressMiddleware(rpcServer.gqlServer, { context: rpcServer.gqlContext })`.
+   */
+  gqlContext: (() => any) | undefined;
   rpcService: RPCService;
   port: any;
   forceShutdown: () => any;
@@ -92,7 +95,6 @@ export class RPCServer extends EventEmitter {
       resolverPath,
       context,
       formatError,
-      playground,
       introspection,
       apolloConfig,
       logger,
@@ -141,14 +143,9 @@ export class RPCServer extends EventEmitter {
     // Construct a schema, using GraphQL schema language from
     // protobuf to GraphQL converter
     // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const ApolloServerExpress = require('apollo-server-express');
-    const { ApolloServer, gql } = ApolloServerExpress;
+    const { ApolloServer } = require('@apollo/server');
     const { gqlSchema } = this.rpcService;
-    registerTypes.push(
-      gql`
-        ${gqlSchema}
-      `,
-    );
+    registerTypes.push(gqlSchema);
 
     if (auto) {
       // Provide resolver functions for your schema fields
@@ -161,9 +158,7 @@ export class RPCServer extends EventEmitter {
 
     this.gqlConfigs = {
       logger,
-      context,
       formatError,
-      playground,
       introspection,
     };
 
@@ -174,6 +169,7 @@ export class RPCServer extends EventEmitter {
     });
 
     this.gqlConfigs = Object.assign(this.gqlConfigs, apolloConfig);
+    this.gqlContext = context;
     this.gqlServer = new ApolloServer(this.gqlConfigs);
   }
 }
