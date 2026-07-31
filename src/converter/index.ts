@@ -14,34 +14,49 @@ type TypeField = {
   typeName?: string;
 };
 
-/**
- * Finder
- * @param {[]} types
- * @param {*} returnType
- */
-function finder(types: any[], returnType: any, input: string | any[]) {
-  return types.find((val: any) => input.indexOf(val) > -1) && returnType;
-}
-
-// Finders
-const typeFinders = [
-  (input: any) => finder(['INT', 'FIXED'], GqlType.Int, input),
-  (input: any) => finder(['FLOAT', 'DOUBLE'], GqlType.Float, input),
-  (input: any) => finder(['STRING', 'BYTES'], GqlType.String, input),
-  (input: any) => finder(['BOOL'], GqlType.Boolean, input),
-];
+/** Scalar names for the custom scalars this converter can emit. */
+const SCALAR_BYTES = 'Bytes';
+const SCALAR_DATETIME = 'DateTime';
+const SCALAR_JSON = 'JSON';
+const CUSTOM_SCALARS = [SCALAR_BYTES, SCALAR_DATETIME, SCALAR_JSON];
 
 /**
- * Find type (factory function)
- * @returns {string} Type function (`Number`|`String`|`Boolean`)
+ * Protobuf wire type -> GraphQL scalar. 64-bit integer variants map to
+ * `String` (not `Int`) to avoid silent precision loss above 2^31; proto-loader
+ * is configured with `longs: String` for the same reason (see rpc-service.ts).
  */
-function findType(input: string): string {
-  for (let i = 0; i < typeFinders.length; i++) {
-    const typeFinder = typeFinders[i].call(null, input);
-    if (typeFinder) return typeFinder;
-  }
-  return undefined;
-}
+const PROTO_SCALAR_TYPES: { [protobufType: string]: string } = {
+  TYPE_INT32: GqlType.Int,
+  TYPE_SINT32: GqlType.Int,
+  TYPE_SFIXED32: GqlType.Int,
+  TYPE_UINT32: GqlType.Int,
+  TYPE_FIXED32: GqlType.Int,
+  TYPE_INT64: GqlType.String,
+  TYPE_SINT64: GqlType.String,
+  TYPE_SFIXED64: GqlType.String,
+  TYPE_UINT64: GqlType.String,
+  TYPE_FIXED64: GqlType.String,
+  TYPE_FLOAT: GqlType.Float,
+  TYPE_DOUBLE: GqlType.Float,
+  TYPE_STRING: GqlType.String,
+  TYPE_BYTES: SCALAR_BYTES,
+  TYPE_BOOL: GqlType.Boolean,
+};
+
+/**
+ * Well-known protobuf message types that don't get converted structurally.
+ * `Struct`/`Value`/`ListValue`/`Any` are recursive/`oneof`-based "arbitrary
+ * data" types by design and can't be modeled as static GraphQL SDL; `Empty`
+ * has no fields to model at all.
+ */
+const WELL_KNOWN_SCALARS: { [qualifiedTypeName: string]: string } = {
+  'google.protobuf.Timestamp': SCALAR_DATETIME,
+  'google.protobuf.Empty': GqlType.Boolean,
+  'google.protobuf.Struct': SCALAR_JSON,
+  'google.protobuf.Value': SCALAR_JSON,
+  'google.protobuf.ListValue': SCALAR_JSON,
+  'google.protobuf.Any': SCALAR_JSON,
+};
 
 const Converter = {
   /**
@@ -50,8 +65,8 @@ const Converter = {
   type(protobufTypeField: TypeField) {
     const { label } = protobufTypeField;
     const protobufType = protobufTypeField.type;
-    const type = findType(protobufType);
-    const myType = type || protobufTypeField.typeName;
+    const myType =
+      PROTO_SCALAR_TYPES[protobufType] || protobufTypeField.typeName;
     const repeated = label === 'LABEL_REPEATED';
     const required = label === 'LABEL_REQUIRED';
 
@@ -66,6 +81,67 @@ const Converter = {
     };
   },
 };
+
+type TypeResolution =
+  | { kind: 'scalar'; scalarName: string }
+  | { kind: 'message'; registeredName: string; packageObj: any };
+
+/**
+ * Resolve a message-typed field's `typeName` to where its GraphQL type
+ * actually lives. `typeName` alone doesn't say whether it's a type nested
+ * inside the message currently being converted (this also covers the
+ * synthetic map-entry type protoc generates for `map<K,V>` fields), a
+ * top-level sibling in the same package, a well-known protobuf type with a
+ * fixed scalar mapping, or a fully-qualified cross-package reference.
+ */
+function resolveType(
+  packageObjects: any,
+  packageObj: { [x: string]: any },
+  parentMessageType: any,
+  parentRegisteredName: string,
+  typeName: string,
+): TypeResolution {
+  if (WELL_KNOWN_SCALARS[typeName]) {
+    return { kind: 'scalar', scalarName: WELL_KNOWN_SCALARS[typeName] };
+  }
+
+  const nestedMessage =
+    parentMessageType &&
+    parentMessageType.nestedType &&
+    parentMessageType.nestedType.find(
+      (nested: { name: string }) => nested.name === typeName,
+    );
+
+  if (nestedMessage) {
+    const registeredName = `${parentRegisteredName}_${typeName}`;
+    return {
+      kind: 'message',
+      registeredName,
+      packageObj: { [registeredName]: { type: nestedMessage } },
+    };
+  }
+
+  if (packageObj[typeName]) {
+    return { kind: 'message', registeredName: typeName, packageObj };
+  }
+
+  if (typeName.indexOf('.') !== -1) {
+    const resolved = recursiveGetPackage(typeName.split('.'), packageObjects);
+
+    if (resolved) {
+      const registeredName = replacePackageName(typeName);
+      return {
+        kind: 'message',
+        registeredName,
+        packageObj: { [registeredName]: resolved },
+      };
+    }
+  }
+
+  throw new Error(
+    `Unknown type reference '${typeName}' from message '${parentRegisteredName}'`,
+  );
+}
 
 type ConvertOptions = {
   /** default: false */
@@ -112,10 +188,38 @@ export default function converter(
       typeField &&
       typeField.filter((field: { type: string }) => field.type === 'TYPE_ENUM');
 
+    // Resolve every TYPE_MESSAGE field's typeName up front: it may point at a
+    // type nested inside this very message (including a `map<K,V>` field's
+    // synthetic entry type), a well-known protobuf type with a fixed scalar
+    // mapping, or a cross-package type. `Converter.type()` above only knows
+    // the raw (possibly ambiguous or unqualified) `typeName`, so field
+    // response types get rewritten below once resolution has run.
+    const messageTypeRenames = new Map<string, string>();
+
     if (__messageType) {
       for (let i = 0; i < __messageType.length; i++) {
         const messageItem = __messageType[i];
-        typeConverter(packageObj, messageItem.typeName, { isInput });
+        const resolution = resolveType(
+          packageObjects,
+          packageObj,
+          messageType,
+          protobufMessageName,
+          messageItem.typeName,
+        );
+
+        if (resolution.kind === 'scalar') {
+          messageTypeRenames.set(messageItem.typeName, resolution.scalarName);
+        } else {
+          if (resolution.registeredName !== messageItem.typeName) {
+            messageTypeRenames.set(
+              messageItem.typeName,
+              resolution.registeredName,
+            );
+          }
+          typeConverter(resolution.packageObj, resolution.registeredName, {
+            isInput,
+          });
+        }
       }
     }
 
@@ -164,6 +268,14 @@ export default function converter(
           if (findInBlockEnums) {
             responseType.type = findInBlockEnums.newTypeName;
           }
+        }
+
+        if (responseType && messageTypeRenames.has(responseType.type)) {
+          responseType.type = messageTypeRenames.get(responseType.type);
+        }
+
+        if (responseType && CUSTOM_SCALARS.indexOf(responseType.type) >= 0) {
+          gqlSchema.useScalar(responseType.type);
         }
 
         if (isEnum) {
@@ -232,26 +344,54 @@ export default function converter(
       const serviceType = [];
       const serviceKeys = Object.keys(packageObj[protosType].service);
 
+      // An RPC's request/response type is always a same-package sibling in
+      // every case observed in practice. proto-loader fully resolves it to a
+      // constructor object rather than a `typeName` string, so — unlike a
+      // field's type — there's no fully-qualified name available to detect a
+      // well-known/cross-package type directly used as an RPC signature type
+      // (e.g. `rpc Get(google.protobuf.Empty) returns (...)`); that's a known
+      // limitation, surfaced as a clear error rather than silently corrupting
+      // the schema. Wrap such a type in a message field instead, where full
+      // resolution (see `resolveType`) applies.
+      const convertRpcMessageType = (resolvedType: any, isInput: boolean) => {
+        const typeName = resolvedType.type.name;
+
+        if (!packageObj[typeName]) {
+          throw new Error(
+            `Unknown type reference '${typeName}' used directly as an RPC ` +
+              'request/response type (well-known/cross-package types are ' +
+              'only resolvable as message fields, not as the RPC signature ' +
+              'type itself)',
+          );
+        }
+
+        typeConverter(packageObj, typeName, { isInput });
+        return typeName;
+      };
+
       for (let j = 0; j < serviceKeys.length; j++) {
         const service = serviceKeys[j];
         const serviceName = service;
         const serviceObj = packageObj[protosType].service[service];
-        const requestType = serviceObj.requestType.type;
-        const responseType = serviceObj.responseType.type;
+        const requestTypeName = convertRpcMessageType(
+          serviceObj.requestType,
+          true,
+        );
+        const responseTypeName = convertRpcMessageType(
+          serviceObj.responseType,
+          false,
+        );
 
         serviceType.push({
           name: serviceName,
           requestParams: [
             {
               name: 'request',
-              type: requestType.name,
+              type: requestTypeName,
             },
           ],
-          responseType: responseType.name,
+          responseType: responseTypeName,
         });
-
-        typeConverter(packageObj, requestType.name, { isInput: true });
-        typeConverter(packageObj, responseType.name);
       }
 
       const excludedTypes = serviceConfig.exclude;
@@ -271,7 +411,7 @@ export default function converter(
         service.requestParams.forEach(
           (param: { name: string | number; type: any }) => {
             params[param.name] = {
-              type: gqlSchema.get(param.type),
+              type: gqlSchema.getTypeRef(param.type),
             };
           },
         );
@@ -282,7 +422,7 @@ export default function converter(
         ) {
           debug(`Adding query function: ${service.name}`);
           protoGqlTypeQuery.addFieldWithParams(service.name, params, {
-            type: gqlSchema.get(service.responseType),
+            type: gqlSchema.getTypeRef(service.responseType),
           });
         } else if (
           Array.isArray(mutateFunctions) &&
@@ -290,15 +430,15 @@ export default function converter(
         ) {
           debug(`Adding mutate function: ${service.name}`);
           protoGqlTypeMutate.addFieldWithParams(service.name, params, {
-            type: gqlSchema.get(service.responseType),
+            type: gqlSchema.getTypeRef(service.responseType),
           });
         } else {
           debug(`Adding query & mutate function: ${service.name}`);
           protoGqlTypeQuery.addFieldWithParams(service.name, params, {
-            type: gqlSchema.get(service.responseType),
+            type: gqlSchema.getTypeRef(service.responseType),
           });
           protoGqlTypeMutate.addFieldWithParams(service.name, params, {
-            type: gqlSchema.get(service.responseType),
+            type: gqlSchema.getTypeRef(service.responseType),
           });
         }
       }

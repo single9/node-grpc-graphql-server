@@ -3,6 +3,7 @@ import * as grpc from '@grpc/grpc-js';
 import { EventEmitter } from 'events';
 import RPCService, { RPCServiceGrpcParams, ParamGraphql } from './rpc-service';
 import { genResolvers, readDir } from './tools';
+import { wellKnownScalars } from '../converter/scalars';
 
 type GqlConfigs = {
   logger: any;
@@ -151,6 +152,25 @@ export class RPCServer extends EventEmitter {
       // Provide resolver functions for your schema fields
       // This section will automatically generate functions and resolvers
       registerResolvers.push(genResolvers(this.rpcService.packages));
+    }
+
+    // The converter only emits `scalar X` declarations for well-known
+    // scalars (Bytes/DateTime/JSON) that are actually referenced by the
+    // generated schema — mirror that here, since `makeExecutableSchema`
+    // throws if a resolver is supplied for a scalar the schema doesn't
+    // declare.
+    const usedScalarResolvers = Object.keys(wellKnownScalars).reduce(
+      (acc, scalarName) => {
+        if (new RegExp(`\\bscalar ${scalarName}\\b`).test(gqlSchema)) {
+          acc[scalarName] = wellKnownScalars[scalarName];
+        }
+        return acc;
+      },
+      {},
+    );
+
+    if (Object.keys(usedScalarResolvers).length > 0) {
+      registerResolvers.push(usedScalarResolvers);
     }
 
     // eslint-disable-next-line @typescript-eslint/no-var-requires
