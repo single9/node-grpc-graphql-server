@@ -404,10 +404,27 @@ Only client need.
 
 ```js
 const client = initRPCClient({
+  protoFile: `${__dirname}/protos/hello.proto`,
+  packages: [
+    {
+      name: "helloworld",
+      services: [
+        {
+          name: "Greeter",
+          port: 50052,
+        },
+      ],
+    },
+  ],
   originalClass: true,
 });
 
 client.on("grpc_client_error", (err) => console.log(err));
+
+// `client` is the RPCClient instance itself when `originalClass: true`;
+// its `.clients` property is the same package/service call map you'd get
+// back from `initRPCClient()` without that flag.
+client.clients.helloworld.Greeter.SayHello({ name: "Duye" });
 ```
 
 ### Event: Server
