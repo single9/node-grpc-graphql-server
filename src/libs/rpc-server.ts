@@ -1,11 +1,14 @@
 import fs from 'fs';
 import * as http from 'http';
 import * as grpc from '@grpc/grpc-js';
-import { Kind, parse } from 'graphql';
+import type {
+  DocumentNode,
+  ObjectTypeDefinitionNode,
+  ObjectTypeExtensionNode,
+} from 'graphql';
 import { EventEmitter } from 'events';
 import RPCService, { RPCServiceGrpcParams, ParamGraphql } from './rpc-service';
 import { genResolvers, readDir } from './tools';
-import { wellKnownScalars } from '../converter/scalars';
 import { genSubscriptionResolvers } from './streaming';
 
 type GqlConfigs = {
@@ -44,12 +47,23 @@ function pickSchemaRootFields(
     Mutation: new Set(),
   };
 
-  parse(gqlSchema).definitions.forEach((def) => {
+  // Lazily required like the other GraphQL dependencies: `graphql` is an
+  // optional peer, so gRPC-only users must be able to load this module
+  // without it installed.
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { Kind, parse } = require('graphql');
+
+  (parse(gqlSchema) as DocumentNode).definitions.forEach((node) => {
     if (
-      (def.kind === Kind.OBJECT_TYPE_DEFINITION ||
-        def.kind === Kind.OBJECT_TYPE_EXTENSION) &&
-      rootFields[def.name.value]
+      node.kind !== Kind.OBJECT_TYPE_DEFINITION &&
+      node.kind !== Kind.OBJECT_TYPE_EXTENSION
     ) {
+      return;
+    }
+
+    const def = node as ObjectTypeDefinitionNode | ObjectTypeExtensionNode;
+
+    if (rootFields[def.name.value]) {
       (def.fields || []).forEach((field) =>
         rootFields[def.name.value].add(field.name.value),
       );
@@ -217,6 +231,8 @@ export class RPCServer extends EventEmitter {
     // generated schema — mirror that here, since `makeExecutableSchema`
     // throws if a resolver is supplied for a scalar the schema doesn't
     // declare.
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { wellKnownScalars } = require('../converter/scalars');
     const usedScalarResolvers = Object.keys(wellKnownScalars).reduce(
       (acc, scalarName) => {
         if (new RegExp(`\\bscalar ${scalarName}\\b`).test(gqlSchema)) {
