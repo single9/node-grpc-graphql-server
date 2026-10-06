@@ -2,6 +2,9 @@
 
 ![test](https://github.com/single9/node-grpc-graphql-server/workflows/test/badge.svg?branch=master) ![npm](https://github.com/single9/node-grpc-graphql-server/workflows/npm/badge.svg) [![codecov](https://codecov.io/gh/single9/node-grpc-graphql-server/branch/main/graph/badge.svg?token=EWQFDL2X0N)](https://codecov.io/gh/single9/node-grpc-graphql-server)
 
+> **Maintenance mode:** this project only receives bug and security fixes; no new features are planned.
+> v1 is no longer supported — please upgrade to v2.
+
 ## Installation
 
     npm install express @grpc/proto-loader @apollo/server @as-integrations/express4 grpc-graphql-server @graphql-tools/schema graphql
