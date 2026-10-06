@@ -1,6 +1,6 @@
 import express from 'express';
 import WebSocket from 'ws';
-import { expressMiddleware } from '@apollo/server/express4';
+import { expressMiddleware } from '@as-integrations/express4';
 import { createClient, Client } from 'graphql-ws';
 import { Server } from 'http';
 import { RPCServer } from '../src';

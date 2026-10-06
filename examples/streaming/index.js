@@ -1,6 +1,6 @@
 const express = require('express');
 const app = express();
-const { expressMiddleware } = require('@apollo/server/express4');
+const { expressMiddleware } = require('@as-integrations/express4');
 const { RPCServer } = require('../..');
 const Ticker = require('./controllers/ticker.js');
 

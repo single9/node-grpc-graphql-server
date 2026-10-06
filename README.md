@@ -4,7 +4,7 @@
 
 ## Installation
 
-    npm install express @grpc/proto-loader @apollo/server grpc-graphql-server @graphql-tools/schema graphql
+    npm install express @grpc/proto-loader @apollo/server @as-integrations/express4 grpc-graphql-server @graphql-tools/schema graphql
 
 ### (Optional) gRPC JS runtime library
 
@@ -59,7 +59,7 @@ Create a file named index.js. This is your server.
 ```js
 const express = require("express");
 const app = express();
-const { expressMiddleware } = require("@apollo/server/express4");
+const { expressMiddleware } = require("@as-integrations/express4");
 const RPCServer = require("grpc-graphql-server").RPCServer;
 
 function response(resData, callback) {

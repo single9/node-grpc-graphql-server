@@ -1,5 +1,5 @@
 import express from 'express';
-import { expressMiddleware } from '@apollo/server/express4';
+import { expressMiddleware } from '@as-integrations/express4';
 import { request, gql } from 'graphql-request';
 import { Server } from 'http';
 import { RPCServer } from '../src';

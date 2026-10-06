@@ -1,7 +1,7 @@
 const path = require('path');
 const express = require('express');
 const app = express();
-const { expressMiddleware } = require('@apollo/server/express4');
+const { expressMiddleware } = require('@as-integrations/express4');
 const { RPCServer } = require('../..');
 const Hello = require('./controllers/helloworld.js');
 
