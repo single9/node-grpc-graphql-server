@@ -1,3 +1,4 @@
+import * as grpc from '@grpc/grpc-js';
 import { RPCServer } from '../../src';
 import Calculator from '../sample/calculator';
 import Hello from '../sample/hello';
@@ -126,6 +127,41 @@ describe('Test libs/rpc-server', () => {
 
   it('should force shutdown RPC Server', async () => {
     await rpcServer.forceShutdown();
+  });
+
+  it('should register extServices once across multiple packages', (done) => {
+    const extService: grpc.ServiceDefinition = {
+      Ping: {
+        path: '/ext.Ext/Ping',
+        requestStream: false,
+        responseStream: false,
+        requestSerialize: (v: any) => v,
+        requestDeserialize: (v: any) => v,
+        responseSerialize: (v: any) => v,
+        responseDeserialize: (v: any) => v,
+      },
+    };
+
+    // Regression test: extServices used to be added once per package, so
+    // grpc-js threw on the second package's duplicate registration.
+    const multiServer = new RPCServer({
+      port: 0,
+      grpc: {
+        protoFile: `${__dirname}/../../examples/protos`,
+        packages: {
+          helloworld: { Greeter: { implementation: new Hello() } },
+          calculator: { Simple: { implementation: new Calculator() } },
+        },
+        extServices: [
+          { service: extService, implementation: { Ping: () => {} } },
+        ],
+      },
+    });
+
+    multiServer.once('grpc_server_started', async () => {
+      await multiServer.forceShutdown();
+      done();
+    });
   });
 
   it('should start a GraphQL server for a service with only a streaming method', (done) => {

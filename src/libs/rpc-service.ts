@@ -328,17 +328,19 @@ export class RPCService extends EventEmitter {
             service.implementation || {},
           );
         });
-
-        // add additional service that is not defined in the package
-        if (this.extServices) {
-          this.extServices.forEach((item) => {
-            this.grpcServer.addService(item.service, item.implementation);
-          });
-        }
       } else {
         throw new Error('Unable to initialize gRPC server');
       }
     });
+
+    // Add additional services that are not defined in any package. Done once
+    // here rather than per package -- registering the same service twice
+    // makes grpc-js throw.
+    if (this.grpcServer && this.extServices) {
+      this.extServices.forEach((item) => {
+        this.grpcServer.addService(item.service, item.implementation);
+      });
+    }
   }
 
   private __init_packages_mapping(
