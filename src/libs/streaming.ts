@@ -199,8 +199,11 @@ export function createStreamSubscribeResolver(
       const topic = uniqueTopic(fieldName);
       const iterator = createStreamIterator(pubsub, topic);
 
+      const publishError = (err: any) =>
+        pubsub.publish(topic, { __streamControl: 'error', error: err });
+
       try {
-        implementationFn(
+        const result = implementationFn(
           createServerStreamCall(
             args && args.request,
             pubsub,
@@ -208,8 +211,15 @@ export function createStreamSubscribeResolver(
             fieldName,
           ),
         );
+
+        // An `async` implementation reports failure by rejecting rather than
+        // throwing; without this the rejection goes unhandled and the
+        // subscription hangs forever.
+        if (result && typeof result.then === 'function') {
+          result.then(undefined, publishError);
+        }
       } catch (err) {
-        pubsub.publish(topic, { __streamControl: 'error', error: err });
+        publishError(err);
       }
 
       return iterator;

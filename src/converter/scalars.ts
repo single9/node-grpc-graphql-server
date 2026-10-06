@@ -19,9 +19,14 @@ function timestampFromIso(value: unknown): StructuralTimestamp {
     );
   }
 
+  // `seconds` is floored, so `nanos` must be the non-negative remainder
+  // (protobuf requires 0 <= nanos < 1e9) -- `ms % 1000` alone goes negative
+  // for pre-1970 timestamps.
+  const seconds = Math.floor(ms / 1000);
+
   return {
-    seconds: String(Math.floor(ms / 1000)),
-    nanos: (ms % 1000) * 1e6,
+    seconds: String(seconds),
+    nanos: (ms - seconds * 1000) * 1e6,
   };
 }
 

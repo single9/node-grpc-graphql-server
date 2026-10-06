@@ -1,6 +1,7 @@
 import fs from 'fs';
 import * as http from 'http';
 import * as grpc from '@grpc/grpc-js';
+import { Kind, parse } from 'graphql';
 import { EventEmitter } from 'events';
 import RPCService, { RPCServiceGrpcParams, ParamGraphql } from './rpc-service';
 import { genResolvers, readDir } from './tools';
@@ -25,6 +26,52 @@ function initDefaultGqlConfigs(): ParamGraphql {
     apolloConfig: undefined,
     logger: undefined,
   };
+}
+
+/**
+ * `genResolvers` builds Query/Mutation resolvers per package from the config
+ * alone, but the converter skips wiring a package that ends up contributing
+ * no query/mutate fields (e.g. one made up entirely of streaming RPCs). Drop
+ * those entries so `makeExecutableSchema` can keep validating that every
+ * resolver matches the schema.
+ */
+function pickSchemaRootFields(
+  resolvers: ReturnType<typeof genResolvers>,
+  gqlSchema: string,
+) {
+  const rootFields: { [rootType: string]: Set<string> } = {
+    Query: new Set(),
+    Mutation: new Set(),
+  };
+
+  parse(gqlSchema).definitions.forEach((def) => {
+    if (
+      (def.kind === Kind.OBJECT_TYPE_DEFINITION ||
+        def.kind === Kind.OBJECT_TYPE_EXTENSION) &&
+      rootFields[def.name.value]
+    ) {
+      (def.fields || []).forEach((field) =>
+        rootFields[def.name.value].add(field.name.value),
+      );
+    }
+  });
+
+  const picked: ReturnType<typeof genResolvers> = {};
+
+  Object.keys(resolvers).forEach((rootType) => {
+    const fields = Object.keys(resolvers[rootType]).filter((name) =>
+      rootFields[rootType].has(name),
+    );
+
+    if (fields.length > 0) {
+      picked[rootType] = {};
+      fields.forEach((name) => {
+        picked[rootType][name] = resolvers[rootType][name];
+      });
+    }
+  });
+
+  return picked;
 }
 
 export class RPCServer extends EventEmitter {
@@ -160,7 +207,9 @@ export class RPCServer extends EventEmitter {
     if (auto) {
       // Provide resolver functions for your schema fields
       // This section will automatically generate functions and resolvers
-      registerResolvers.push(genResolvers(this.rpcService.packages));
+      registerResolvers.push(
+        pickSchemaRootFields(genResolvers(this.rpcService.packages), gqlSchema),
+      );
     }
 
     // The converter only emits `scalar X` declarations for well-known
@@ -214,15 +263,6 @@ export class RPCServer extends EventEmitter {
       typeDefs: registerTypes,
       resolvers: registerResolvers,
       logger,
-      // The auto-generated Query/Mutation resolvers (`genResolvers`) are
-      // built per-package from the config, independently of the schema the
-      // converter actually emits -- a package whose only service(s)
-      // contribute nothing to Query/Mutation (e.g. entirely
-      // server-streaming) still gets an (unreachable, harmless) resolver
-      // entry for it. Warn instead of hard-failing on that specific,
-      // narrow mismatch rather than crashing server startup over a
-      // resolver nothing will ever call.
-      resolverValidationOptions: { requireResolversToMatchSchema: 'warn' },
     });
 
     this.gqlConfigs = Object.assign(this.gqlConfigs, apolloConfig);

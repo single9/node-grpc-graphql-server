@@ -232,7 +232,7 @@ export class RPCClient extends RPCService {
               return new Promise((resolve, reject) => {
                 serviceClient[fnName](firstArg, metadata, (err, response) => {
                   if (err) {
-                    emitClientError(err, args[0], fnName);
+                    emitClientError(err, firstArg, fnName);
                     reject(err);
                     return;
                   }

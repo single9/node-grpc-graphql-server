@@ -53,6 +53,20 @@ describe('createStreamSubscribeResolver', () => {
     await expect(collect(iterator)).rejects.toThrow('boom');
   });
 
+  it('propagates a rejection from an async implementation', async () => {
+    const pubsub = new PubSub();
+    const resolver = createStreamSubscribeResolver(
+      pubsub,
+      async () => {
+        throw new Error('async boom');
+      },
+      'field',
+    );
+
+    const iterator = resolver.subscribe(null, { request: {} });
+    await expect(collect(iterator)).rejects.toThrow('async boom');
+  });
+
   it('propagates an error from call.destroy()', async () => {
     const pubsub = new PubSub();
     const resolver = createStreamSubscribeResolver(

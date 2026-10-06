@@ -81,6 +81,15 @@ describe('GraphQLDateTime', () => {
     expect(result.nanos).toBe(0);
   });
 
+  it('keeps nanos non-negative for a pre-1970 timestamp', () => {
+    const result = GraphQLDateTime.parseValue('1969-12-31T23:59:59.250Z') as {
+      seconds: string;
+      nanos: number;
+    };
+    expect(result).toEqual({ seconds: '-1', nanos: 250e6 });
+    expect(GraphQLDateTime.serialize(result)).toBe('1969-12-31T23:59:59.250Z');
+  });
+
   it('throws when parsing an invalid ISO string', () => {
     expect(() => GraphQLDateTime.parseValue('not-a-date')).toThrow(TypeError);
   });
