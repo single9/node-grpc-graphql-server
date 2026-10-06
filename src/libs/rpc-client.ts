@@ -11,6 +11,31 @@ export type ClientConstructorParams = {
   packages: RPCServiceGrpcParams['packages'];
 };
 
+export type InitRPCClientParams = ClientConstructorParams & {
+  /**
+   * Return the `RPCClient` instance itself instead of its `.clients` map.
+   * Needed to listen for events (e.g. `grpc_client_error`), which are
+   * emitted on the instance, not on the per-service function map.
+   */
+  originalClass?: boolean;
+};
+
+/**
+ * Builds a `grpc.Metadata` from the `{ metadata: [[key, value], ...] }`
+ * convenience shape accepted throughout this wrapper's call options.
+ */
+function buildMetadataFromOpts(opts: any): grpc.Metadata {
+  const metadata = new grpc.Metadata();
+
+  if (opts && opts.metadata && Array.isArray(opts.metadata)) {
+    opts.metadata.forEach((iMeta: string[]) => {
+      metadata.set(iMeta[0], iMeta[1]);
+    });
+  }
+
+  return metadata;
+}
+
 export class RPCClient extends RPCService {
   /**
    * Creates instance of RPC Client.
@@ -46,7 +71,7 @@ export class RPCClient extends RPCService {
           this.clients[packageName] = {};
         }
         _service.host = _service.host || 'localhost';
-        _service.port = _service.port || '50051';
+        _service.port = _service.port || 50051;
         const host = `${_service.host}:${_service.port}`;
         const serviceFunctionsKey = Object.keys(
           packageObject[_service.name].service,
@@ -59,12 +84,125 @@ export class RPCClient extends RPCService {
         const newFunctions = { ...serviceClient };
 
         Object.assign(newFunctions, {
-          close: serviceClient.close,
-          getChannel: serviceClient.getChannel,
+          close: serviceClient.close.bind(serviceClient),
+          getChannel: serviceClient.getChannel.bind(serviceClient),
         });
 
+        const emitClientError = (err: any, request: any, fnName: string) => {
+          const errDetails = {
+            error: err,
+            call: { service: _service.name, function: fnName, request },
+          };
+          this.emit('grpc_client_error', errDetails);
+          err.call = errDetails.call;
+        };
+
         serviceFunctionsKey.forEach((fnName) => {
-          // Promise the functions
+          const methodDescriptor = packageObject[_service.name].service[fnName];
+
+          if (
+            methodDescriptor.requestStream &&
+            methodDescriptor.responseStream
+          ) {
+            // Bidi-streaming: no initial request argument at the gRPC level
+            // (both sides are opened via the returned duplex stream) and no
+            // single final response to promise-ify -- just return the
+            // native `ClientDuplexStream`.
+            newFunctions[fnName] = (opts?: {
+              metadata?: Array<[string, any]>;
+            }) => {
+              const metadata = buildMetadataFromOpts(opts);
+              const call = serviceClient[fnName](metadata);
+              call.on('error', (err: any) =>
+                emitClientError(err, undefined, fnName),
+              );
+              return call;
+            };
+            return;
+          }
+
+          if (methodDescriptor.requestStream) {
+            // Client-streaming: request is sent via `call.write()`/`call.end()`
+            // on the returned `ClientWritableStream`, not as an argument here.
+            // gRPC always requires a callback for the single final response;
+            // if the caller doesn't supply one, auto-wire a Promise and
+            // attach it directly onto the returned stream (`.then`/`.catch`/
+            // `.finally`), so the same value supports both
+            // `call.write(x); call.end();` and `const res = await call;`.
+            newFunctions[fnName] = (
+              opts?:
+                | { metadata?: Array<[string, any]> }
+                | ((err: any, response: any) => void),
+              callback?: (err: any, response: any) => void,
+            ) => {
+              let _opts = opts;
+              let _callback = callback;
+
+              if (typeof _opts === 'function') {
+                _callback = _opts;
+                _opts = undefined;
+              }
+
+              const metadata = buildMetadataFromOpts(_opts);
+
+              if (typeof _callback === 'function') {
+                return serviceClient[fnName](
+                  metadata,
+                  (err: any, response: any) => {
+                    if (err) emitClientError(err, undefined, fnName);
+                    _callback(err, response);
+                  },
+                );
+              }
+
+              let resolveFn: (value: any) => void;
+              let rejectFn: (reason: any) => void;
+              const promise = new Promise((resolve, reject) => {
+                resolveFn = resolve;
+                rejectFn = reject;
+              });
+
+              const call = serviceClient[fnName](
+                metadata,
+                (err: any, response: any) => {
+                  if (err) {
+                    emitClientError(err, undefined, fnName);
+                    rejectFn(err);
+                    return;
+                  }
+                  resolveFn(response);
+                },
+              );
+
+              call.then = promise.then.bind(promise);
+              call.catch = promise.catch.bind(promise);
+              call.finally = promise.finally.bind(promise);
+              return call;
+            };
+            return;
+          }
+
+          if (methodDescriptor.responseStream) {
+            // Server-streaming: no callback at the gRPC level -- returns a
+            // `ClientReadableStream` immediately, which already supports
+            // `.on('data'/'end'/'error')` and `for await` natively (it's a
+            // Node `Readable`); no promise wrapping makes sense for multiple
+            // values over time.
+            newFunctions[fnName] = (
+              request?: any,
+              opts?: { metadata?: Array<[string, any]> },
+            ) => {
+              const metadata = buildMetadataFromOpts(opts);
+              const call = serviceClient[fnName](request || {}, metadata);
+              call.on('error', (err: any) =>
+                emitClientError(err, request, fnName),
+              );
+              return call;
+            };
+            return;
+          }
+
+          // Unary -- unchanged.
           newFunctions[fnName] = (...args) => {
             // ensure passing an object to function. Because gRPC need.
             const _args = args;
@@ -94,20 +232,8 @@ export class RPCClient extends RPCService {
               return new Promise((resolve, reject) => {
                 serviceClient[fnName](firstArg, metadata, (err, response) => {
                   if (err) {
-                    const _err = err;
-                    const errDetails = {
-                      error: _err,
-                      call: {
-                        service: _service.name,
-                        function: fnName,
-                        request: args[0],
-                      },
-                    };
-                    // fire event `grpc_client_error`
-                    this.emit('grpc_client_error', errDetails);
-                    // add call to error object
-                    _err.call = errDetails.call;
-                    reject(_err);
+                    emitClientError(err, firstArg, fnName);
+                    reject(err);
                     return;
                   }
                   resolve(response);
@@ -125,9 +251,17 @@ export class RPCClient extends RPCService {
 }
 
 export function initRPCClient(
-  { protoFile, packages }: ClientConstructorParams,
+  params: InitRPCClientParams & { originalClass: true },
   opts?: protoLoader.Options,
-): gRPCServiceClients {
+): RPCClient;
+export function initRPCClient(
+  params: ClientConstructorParams,
+  opts?: protoLoader.Options,
+): gRPCServiceClients;
+export function initRPCClient(
+  { protoFile, packages, originalClass }: InitRPCClientParams,
+  opts?: protoLoader.Options,
+): RPCClient | gRPCServiceClients {
   const rpcClient = new RPCClient({ protoFile, packages }, opts);
-  return rpcClient.clients;
+  return originalClass ? rpcClient : rpcClient.clients;
 }

@@ -16,6 +16,7 @@ rootSubscription.addField('_', { type: GqlType.String });
 export class GraphQLGenerator {
   root: { query: GraphQlBlock; mutation: GraphQlBlock };
   blocks: { [name: string]: GraphQlBlock };
+  usedScalars: Set<string>;
   Query: GraphQlBlock;
   Mutation: GraphQlBlock;
   Subscription: GraphQlBlock;
@@ -26,6 +27,7 @@ export class GraphQLGenerator {
     };
 
     this.blocks = {};
+    this.usedScalars = new Set();
     this.Query = new GraphQlBlock('type', 'Query', { extend: true });
     this.Mutation = new GraphQlBlock('type', 'Mutation', { extend: true });
     this.Subscription = new GraphQlBlock('type', 'Subscription', {
@@ -104,11 +106,36 @@ export class GraphQLGenerator {
   }
 
   /**
+   * Like `get()`, but falls back to returning `name` itself when it's a
+   * scalar (a custom scalar in use, or a GraphQL built-in) instead of a
+   * registered block — request/response types can resolve to a bare scalar
+   * name, e.g. `google.protobuf.Empty` -> `Boolean`.
+   */
+  getTypeRef(name: string): GraphQlBlock | string {
+    if (this.blocks[name]) return this.blocks[name];
+    if (this.usedScalars.has(name)) return name;
+    if ((Object.values(GqlType) as string[]).indexOf(name) >= 0) return name;
+    return undefined;
+  }
+
+  /**
+   * Mark a custom scalar (e.g. `Bytes`, `DateTime`, `JSON`) as referenced,
+   * so `toGql()` emits its `scalar` declaration.
+   */
+  useScalar(name: string) {
+    this.usedScalars.add(name);
+  }
+
+  /**
    * Convert into GraphQL Schema
    */
   toGql() {
     let output = '';
     const blockKeys = Object.keys(this.blocks);
+
+    this.usedScalars.forEach((name) => {
+      output += `scalar ${name}\n`;
+    });
 
     output += rootQuery.toGql();
     output += rootMutation.toGql();

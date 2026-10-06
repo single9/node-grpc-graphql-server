@@ -2,7 +2,11 @@ import Debug from 'debug';
 import { GqlType } from './graphql-type';
 import { GraphQLGenerator } from './graphql-generator';
 import GraphQlBlock from './graphql-block';
-import { recursiveGetPackage, replacePackageName } from '../libs/tools';
+import {
+  recursiveGetPackage,
+  replacePackageName,
+  subscriptionFieldName,
+} from '../libs/tools';
 import { RPCServicePackages } from '../libs/rpc-service';
 
 const debug = Debug('grpc-gql-server:converter');
@@ -14,34 +18,49 @@ type TypeField = {
   typeName?: string;
 };
 
-/**
- * Finder
- * @param {[]} types
- * @param {*} returnType
- */
-function finder(types: any[], returnType: any, input: string | any[]) {
-  return types.find((val: any) => input.indexOf(val) > -1) && returnType;
-}
-
-// Finders
-const typeFinders = [
-  (input: any) => finder(['INT', 'FIXED'], GqlType.Int, input),
-  (input: any) => finder(['FLOAT', 'DOUBLE'], GqlType.Float, input),
-  (input: any) => finder(['STRING', 'BYTES'], GqlType.String, input),
-  (input: any) => finder(['BOOL'], GqlType.Boolean, input),
-];
+/** Scalar names for the custom scalars this converter can emit. */
+const SCALAR_BYTES = 'Bytes';
+const SCALAR_DATETIME = 'DateTime';
+const SCALAR_JSON = 'JSON';
+const CUSTOM_SCALARS = [SCALAR_BYTES, SCALAR_DATETIME, SCALAR_JSON];
 
 /**
- * Find type (factory function)
- * @returns {string} Type function (`Number`|`String`|`Boolean`)
+ * Protobuf wire type -> GraphQL scalar. 64-bit integer variants map to
+ * `String` (not `Int`) to avoid silent precision loss above 2^31; proto-loader
+ * is configured with `longs: String` for the same reason (see rpc-service.ts).
  */
-function findType(input: string): string {
-  for (let i = 0; i < typeFinders.length; i++) {
-    const typeFinder = typeFinders[i].call(null, input);
-    if (typeFinder) return typeFinder;
-  }
-  return undefined;
-}
+const PROTO_SCALAR_TYPES: { [protobufType: string]: string } = {
+  TYPE_INT32: GqlType.Int,
+  TYPE_SINT32: GqlType.Int,
+  TYPE_SFIXED32: GqlType.Int,
+  TYPE_UINT32: GqlType.Int,
+  TYPE_FIXED32: GqlType.Int,
+  TYPE_INT64: GqlType.String,
+  TYPE_SINT64: GqlType.String,
+  TYPE_SFIXED64: GqlType.String,
+  TYPE_UINT64: GqlType.String,
+  TYPE_FIXED64: GqlType.String,
+  TYPE_FLOAT: GqlType.Float,
+  TYPE_DOUBLE: GqlType.Float,
+  TYPE_STRING: GqlType.String,
+  TYPE_BYTES: SCALAR_BYTES,
+  TYPE_BOOL: GqlType.Boolean,
+};
+
+/**
+ * Well-known protobuf message types that don't get converted structurally.
+ * `Struct`/`Value`/`ListValue`/`Any` are recursive/`oneof`-based "arbitrary
+ * data" types by design and can't be modeled as static GraphQL SDL; `Empty`
+ * has no fields to model at all.
+ */
+const WELL_KNOWN_SCALARS: { [qualifiedTypeName: string]: string } = {
+  'google.protobuf.Timestamp': SCALAR_DATETIME,
+  'google.protobuf.Empty': GqlType.Boolean,
+  'google.protobuf.Struct': SCALAR_JSON,
+  'google.protobuf.Value': SCALAR_JSON,
+  'google.protobuf.ListValue': SCALAR_JSON,
+  'google.protobuf.Any': SCALAR_JSON,
+};
 
 const Converter = {
   /**
@@ -50,8 +69,8 @@ const Converter = {
   type(protobufTypeField: TypeField) {
     const { label } = protobufTypeField;
     const protobufType = protobufTypeField.type;
-    const type = findType(protobufType);
-    const myType = type || protobufTypeField.typeName;
+    const myType =
+      PROTO_SCALAR_TYPES[protobufType] || protobufTypeField.typeName;
     const repeated = label === 'LABEL_REPEATED';
     const required = label === 'LABEL_REQUIRED';
 
@@ -66,6 +85,67 @@ const Converter = {
     };
   },
 };
+
+type TypeResolution =
+  | { kind: 'scalar'; scalarName: string }
+  | { kind: 'message'; registeredName: string; packageObj: any };
+
+/**
+ * Resolve a message-typed field's `typeName` to where its GraphQL type
+ * actually lives. `typeName` alone doesn't say whether it's a type nested
+ * inside the message currently being converted (this also covers the
+ * synthetic map-entry type protoc generates for `map<K,V>` fields), a
+ * top-level sibling in the same package, a well-known protobuf type with a
+ * fixed scalar mapping, or a fully-qualified cross-package reference.
+ */
+function resolveType(
+  packageObjects: any,
+  packageObj: { [x: string]: any },
+  parentMessageType: any,
+  parentRegisteredName: string,
+  typeName: string,
+): TypeResolution {
+  if (WELL_KNOWN_SCALARS[typeName]) {
+    return { kind: 'scalar', scalarName: WELL_KNOWN_SCALARS[typeName] };
+  }
+
+  const nestedMessage =
+    parentMessageType &&
+    parentMessageType.nestedType &&
+    parentMessageType.nestedType.find(
+      (nested: { name: string }) => nested.name === typeName,
+    );
+
+  if (nestedMessage) {
+    const registeredName = `${parentRegisteredName}_${typeName}`;
+    return {
+      kind: 'message',
+      registeredName,
+      packageObj: { [registeredName]: { type: nestedMessage } },
+    };
+  }
+
+  if (packageObj[typeName]) {
+    return { kind: 'message', registeredName: typeName, packageObj };
+  }
+
+  if (typeName.indexOf('.') !== -1) {
+    const resolved = recursiveGetPackage(typeName.split('.'), packageObjects);
+
+    if (resolved) {
+      const registeredName = replacePackageName(typeName);
+      return {
+        kind: 'message',
+        registeredName,
+        packageObj: { [registeredName]: resolved },
+      };
+    }
+  }
+
+  throw new Error(
+    `Unknown type reference '${typeName}' from message '${parentRegisteredName}'`,
+  );
+}
 
 type ConvertOptions = {
   /** default: false */
@@ -112,10 +192,38 @@ export default function converter(
       typeField &&
       typeField.filter((field: { type: string }) => field.type === 'TYPE_ENUM');
 
+    // Resolve every TYPE_MESSAGE field's typeName up front: it may point at a
+    // type nested inside this very message (including a `map<K,V>` field's
+    // synthetic entry type), a well-known protobuf type with a fixed scalar
+    // mapping, or a cross-package type. `Converter.type()` above only knows
+    // the raw (possibly ambiguous or unqualified) `typeName`, so field
+    // response types get rewritten below once resolution has run.
+    const messageTypeRenames = new Map<string, string>();
+
     if (__messageType) {
       for (let i = 0; i < __messageType.length; i++) {
         const messageItem = __messageType[i];
-        typeConverter(packageObj, messageItem.typeName, { isInput });
+        const resolution = resolveType(
+          packageObjects,
+          packageObj,
+          messageType,
+          protobufMessageName,
+          messageItem.typeName,
+        );
+
+        if (resolution.kind === 'scalar') {
+          messageTypeRenames.set(messageItem.typeName, resolution.scalarName);
+        } else {
+          if (resolution.registeredName !== messageItem.typeName) {
+            messageTypeRenames.set(
+              messageItem.typeName,
+              resolution.registeredName,
+            );
+          }
+          typeConverter(resolution.packageObj, resolution.registeredName, {
+            isInput,
+          });
+        }
       }
     }
 
@@ -166,6 +274,14 @@ export default function converter(
           }
         }
 
+        if (responseType && messageTypeRenames.has(responseType.type)) {
+          responseType.type = messageTypeRenames.get(responseType.type);
+        }
+
+        if (responseType && CUSTOM_SCALARS.indexOf(responseType.type) >= 0) {
+          gqlSchema.useScalar(responseType.type);
+        }
+
         if (isEnum) {
           gqlBlock.addField(fn.name);
         } else {
@@ -206,57 +322,117 @@ export default function converter(
           : serviceConfig.grpcOnly;
 
       if (serviceConfig.grpcOnly) continue;
+      // Wiring `<package>_query`/`<package>_mutate` into the root
+      // Query/Mutation type is deferred until every service in this package
+      // has been processed (below) -- a package whose services turn out to
+      // contribute zero query/mutate fields (e.g. entirely
+      // streaming/grpcOnly) must not be wired in at all, or it'd be a
+      // dangling reference: `toGql()` doesn't emit an empty type, but the
+      // root field referencing it would still be emitted.
       if (serviceConfig.query !== false) {
-        queryType = gqlSchema.get(queryTypeName);
-
-        if (!queryType) {
-          queryType = gqlSchema.createType(queryTypeName);
-          gqlSchema.addToQuery(packageKey, null, {
-            type: queryType,
-          });
-        }
+        queryType =
+          gqlSchema.get(queryTypeName) || gqlSchema.createType(queryTypeName);
       }
 
       if (serviceConfig.mutate !== false) {
-        mutateType = gqlSchema.get(mutateTypeName);
-
-        if (!mutateType) {
-          mutateType = gqlSchema.createType(mutateTypeName);
-          gqlSchema.addToMutation(packageKey, null, {
-            type: mutateType,
-          });
-        }
+        mutateType =
+          gqlSchema.get(mutateTypeName) || gqlSchema.createType(mutateTypeName);
       }
 
       // service type
       const serviceType = [];
       const serviceKeys = Object.keys(packageObj[protosType].service);
 
-      for (let j = 0; j < serviceKeys.length; j++) {
-        const service = serviceKeys[j];
-        const serviceName = service;
-        const serviceObj = packageObj[protosType].service[service];
-        const requestType = serviceObj.requestType.type;
-        const responseType = serviceObj.responseType.type;
+      // An RPC's request/response type is always a same-package sibling in
+      // every case observed in practice. proto-loader fully resolves it to a
+      // constructor object rather than a `typeName` string, so — unlike a
+      // field's type — there's no fully-qualified name available to detect a
+      // well-known/cross-package type directly used as an RPC signature type
+      // (e.g. `rpc Get(google.protobuf.Empty) returns (...)`); that's a known
+      // limitation, surfaced as a clear error rather than silently corrupting
+      // the schema. Wrap such a type in a message field instead, where full
+      // resolution (see `resolveType`) applies.
+      const convertRpcMessageType = (resolvedType: any, isInput: boolean) => {
+        const typeName = resolvedType.type.name;
 
-        serviceType.push({
-          name: serviceName,
-          requestParams: [
-            {
-              name: 'request',
-              type: requestType.name,
-            },
-          ],
-          responseType: responseType.name,
-        });
+        if (!packageObj[typeName]) {
+          throw new Error(
+            `Unknown type reference '${typeName}' used directly as an RPC ` +
+              'request/response type (well-known/cross-package types are ' +
+              'only resolvable as message fields, not as the RPC signature ' +
+              'type itself)',
+          );
+        }
 
-        typeConverter(packageObj, requestType.name, { isInput: true });
-        typeConverter(packageObj, responseType.name);
-      }
+        typeConverter(packageObj, typeName, { isInput });
+        return typeName;
+      };
 
       const excludedTypes = serviceConfig.exclude;
       const queryFunctions = serviceConfig.query;
       const mutateFunctions = serviceConfig.mutate;
+
+      for (let j = 0; j < serviceKeys.length; j++) {
+        const service = serviceKeys[j];
+        const serviceName = service;
+        const serviceObj = packageObj[protosType].service[service];
+
+        if (excludedTypes && excludedTypes.indexOf(serviceName) >= 0) {
+          continue;
+        }
+
+        // Client-streaming / bidi-streaming RPCs have no GraphQL equivalent
+        // -- GraphQL has no way to feed a stream of values into a single
+        // field call. They stay fully callable over plain gRPC (see
+        // rpc-service.ts's unconditional `addService`); they're just not
+        // representable in the generated schema.
+        if (serviceObj.requestStream) {
+          debug(
+            `Skipping '${serviceName}' from GraphQL: ${
+              serviceObj.responseStream ? 'bidi' : 'client'
+            }-streaming RPCs have no GraphQL equivalent`,
+          );
+          continue;
+        }
+
+        const requestTypeName = convertRpcMessageType(
+          serviceObj.requestType,
+          true,
+        );
+        const responseTypeName = convertRpcMessageType(
+          serviceObj.responseType,
+          false,
+        );
+        const requestParams = [{ name: 'request', type: requestTypeName }];
+
+        // Server-streaming RPCs aren't a query or a mutation -- they're
+        // exposed as a GraphQL Subscription instead, and (unlike
+        // Query/Mutation) a Subscription field must be a direct child of the
+        // `Subscription` type, so it can't be nested under a package/service
+        // wrapper type the way query/mutate fields are below.
+        if (serviceObj.responseStream) {
+          debug(`Adding subscription function: ${serviceName}`);
+          const params = {};
+
+          requestParams.forEach((param) => {
+            params[param.name] = { type: gqlSchema.getTypeRef(param.type) };
+          });
+
+          gqlSchema.addToSubscription(
+            subscriptionFieldName(config.name, protosType, serviceName),
+            params,
+            { type: gqlSchema.getTypeRef(responseTypeName) },
+          );
+          continue;
+        }
+
+        serviceType.push({
+          name: serviceName,
+          requestParams,
+          responseType: responseTypeName,
+        });
+      }
+
       const protoGqlTypeQuery = gqlSchema.createType(`${protosType}_query`);
       const protoGqlTypeMutate = gqlSchema.createType(`${protosType}_mutate`);
 
@@ -264,50 +440,54 @@ export default function converter(
         const service = serviceType[k];
         const params = {};
 
-        if (excludedTypes && excludedTypes.indexOf(service.name) >= 0) {
-          continue;
-        }
-
         service.requestParams.forEach(
           (param: { name: string | number; type: any }) => {
             params[param.name] = {
-              type: gqlSchema.get(param.type),
+              type: gqlSchema.getTypeRef(param.type),
             };
           },
         );
 
-        if (queryFunctions && queryFunctions.indexOf(service.name) >= 0) {
+        if (
+          Array.isArray(queryFunctions) &&
+          queryFunctions.indexOf(service.name) >= 0
+        ) {
           debug(`Adding query function: ${service.name}`);
           protoGqlTypeQuery.addFieldWithParams(service.name, params, {
-            type: gqlSchema.get(service.responseType),
+            type: gqlSchema.getTypeRef(service.responseType),
           });
         } else if (
-          mutateFunctions &&
+          Array.isArray(mutateFunctions) &&
           mutateFunctions.indexOf(service.name) >= 0
         ) {
           debug(`Adding mutate function: ${service.name}`);
           protoGqlTypeMutate.addFieldWithParams(service.name, params, {
-            type: gqlSchema.get(service.responseType),
+            type: gqlSchema.getTypeRef(service.responseType),
           });
         } else {
           debug(`Adding query & mutate function: ${service.name}`);
           protoGqlTypeQuery.addFieldWithParams(service.name, params, {
-            type: gqlSchema.get(service.responseType),
+            type: gqlSchema.getTypeRef(service.responseType),
           });
           protoGqlTypeMutate.addFieldWithParams(service.name, params, {
-            type: gqlSchema.get(service.responseType),
+            type: gqlSchema.getTypeRef(service.responseType),
           });
         }
       }
 
-      if (queryType) {
+      // A service made up entirely of streaming/excluded methods leaves
+      // these with zero fields; `GraphQLGenerator#toGql()` doesn't emit an
+      // empty type (same rule it already applies to Query/Mutation/
+      // Subscription themselves), so attaching it anyway would leave a
+      // dangling reference to a type that was never defined.
+      if (queryType && protoGqlTypeQuery.listFields().length > 0) {
         debug(`Adding query type -> ${protosType}: ${protoGqlTypeQuery.name}`);
         queryType.addField(protosType, {
           type: protoGqlTypeQuery,
         });
       }
 
-      if (mutateType) {
+      if (mutateType && protoGqlTypeMutate.listFields().length > 0) {
         debug(
           `Adding mutate type -> ${protosType}: ${protoGqlTypeMutate.name}`,
         );
@@ -315,6 +495,20 @@ export default function converter(
           type: protoGqlTypeMutate,
         });
       }
+    }
+
+    // Now that every service in this package has been processed, wire
+    // `<package>_query`/`<package>_mutate` into the root Query/Mutation --
+    // but only if a service actually ended up contributing a field to it
+    // (see the comment above), otherwise leave it unwired entirely.
+    const finalQueryType = gqlSchema.get(queryTypeName);
+    if (finalQueryType && finalQueryType.listFields().length > 0) {
+      gqlSchema.addToQuery(packageKey, null, { type: finalQueryType });
+    }
+
+    const finalMutateType = gqlSchema.get(mutateTypeName);
+    if (finalMutateType && finalMutateType.listFields().length > 0) {
+      gqlSchema.addToMutation(packageKey, null, { type: finalMutateType });
     }
   });
 

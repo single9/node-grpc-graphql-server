@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package coverage;
+
+import "google/protobuf/timestamp.proto";
+
+message Item {
+  string id = 1;
+  bytes payload = 2;
+  int64 big = 3;
+  uint64 ubig = 4;
+  map<string, string> tags = 5;
+  google.protobuf.Timestamp created_at = 6;
+
+  message Inner {
+    string note = 1;
+  }
+
+  Inner inner = 7;
+  repeated Inner many_inner = 8;
+}
+
+message GetItemRequest {
+  string id = 1;
+}
+
+service ItemSvc {
+  rpc GetItem(GetItemRequest) returns (Item) {}
+}

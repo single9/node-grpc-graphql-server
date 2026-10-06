@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package ticker;
+
+service TickerSvc {
+  // Server-streaming RPC -- converted into a GraphQL Subscription field
+  // named `ticker_TickerSvc_Watch`.
+  rpc Watch (WatchRequest) returns (stream Tick) {}
+}
+
+message WatchRequest {
+  string symbol = 1;
+  // How many ticks to send before ending the stream.
+  int32 count = 2;
+}
+
+message Tick {
+  string symbol = 1;
+  double price = 2;
+}

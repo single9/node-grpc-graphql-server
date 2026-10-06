@@ -22,6 +22,23 @@ export function replacePackageName(name: string) {
 }
 
 /**
+ * Flat field name for a server-streaming RPC exposed as a GraphQL
+ * Subscription. Subscription fields must be direct children of the
+ * `Subscription` type (the special `{subscribe, resolve}` execution only
+ * applies one level deep), so — unlike Query/Mutation — they can't be nested
+ * under package/service wrapper types. Exported so the converter (schema
+ * field name) and the resolver generator (resolver map key) independently
+ * compute the identical name.
+ */
+export function subscriptionFieldName(
+  packageName: string,
+  serviceName: string,
+  methodName: string,
+) {
+  return `${replacePackageName(packageName)}_${serviceName}_${methodName}`;
+}
+
+/**
  * Generate resolvers
  */
 export function genResolverType(type: string, packages: RPCServicePackages[]) {
@@ -211,7 +228,7 @@ export function genGrpcJs(
   }
 
   // generate grpc module index file
-  let tempExportStr = '\nmodule.exprts = {\n\tproto,\n<exports>\n};\n';
+  let tempExportStr = '\nmodule.exports = {\n<exports>\n};\n';
   let exportModule = '';
 
   for (let i = 0; i < indexModuleName.length; i++) {

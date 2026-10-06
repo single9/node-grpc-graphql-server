@@ -1,4 +1,4 @@
-import { GqlBlockType, GqlType } from './graphql-type';
+import { GqlBlockType } from './graphql-type';
 
 const blockType = ['input', 'type', 'enum'];
 
@@ -33,7 +33,12 @@ export type AddFieldOptions = {
 };
 
 export type FieldResponseType = {
-  type: GraphQlBlock | keyof typeof GqlType;
+  /**
+   * A registered `GraphQlBlock`, or a bare type name — either a
+   * `keyof typeof GqlType` built-in scalar or a custom scalar/registered
+   * block name resolved elsewhere (see `GraphQLGenerator#getTypeRef`).
+   */
+  type: GraphQlBlock | string;
   /** default: true */
   nullable?: boolean;
   /** default: false */

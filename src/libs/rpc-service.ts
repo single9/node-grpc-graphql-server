@@ -27,11 +27,13 @@ export interface IServicesDescriptor {
           callback: (err: Error, data: any) => void,
         ) => void;
       };
-  /** (GraphQL mutation) Is it can be mutated? default: false */
-  mutate?: boolean;
-  /** (GraphQL query) Is it can be queried? default: true */
-  query?: boolean;
+  /** (GraphQL mutation) Is it can be mutated? Pass an array of method names to only mutate those. default: false */
+  mutate?: boolean | string[];
+  /** (GraphQL query) Is it can be queried? Pass an array of method names to only query those. default: true */
+  query?: boolean | string[];
   grpcOnly?: boolean;
+  /** List of method names to exclude from GraphQL entirely */
+  exclude?: string[];
 }
 
 export interface ServicesDescriptor extends IServicesDescriptor {
@@ -107,18 +109,28 @@ export type ParamGraphql = {
   /** Path of yours GraphQL schemas */
   schemaPath?: string | string[];
   resolverPath?: string | string[];
+  /**
+   * Context function for the GraphQL server. Not passed to the `ApolloServer`
+   * constructor (Apollo Server 4 no longer accepts `context` there) — instead
+   * it's exposed as `RPCServer#gqlContext` for you to pass to
+   * `expressMiddleware(server, { context })` yourself.
+   */
   context?: () => any;
   formatError?: (error: any) => any;
   introspection?: any;
   /** Logger for GraphQL server */
   logger?: any;
-  /**
-   * Reference: https://www.apollographql.com/docs/apollo-server/testing/graphql-playground/#configuring-playground
-   */
-  playground?: boolean | Playground;
-  /** Reference to `ApolloServerExpress.ApolloServerExpressConfig` */
+  /** Reference to `ApolloServerOptions` from `@apollo/server` */
   apolloConfig?: any;
   auto?: boolean;
+  /**
+   * `PubSubEngine` instance (from `graphql-subscriptions`) used to back
+   * server-streaming RPCs exposed as GraphQL Subscriptions. Defaults to an
+   * in-memory `PubSub`. Provide your own (e.g. a Redis-backed engine) if
+   * you're running multiple server instances and a stream's writer and a
+   * subscriber's WebSocket connection might land on different instances.
+   */
+  pubsub?: any;
 };
 
 /**
@@ -173,11 +185,6 @@ type ParamExtService = {
   implementation: grpc.UntypedServiceImplementation;
 };
 
-type Playground = {
-  settings?: any;
-  tabs?: any[];
-};
-
 type PackageObject = {
   [x: string]: grpc.GrpcObject | grpc.Client;
 };
@@ -222,6 +229,8 @@ export class RPCService extends EventEmitter {
       );
     }
 
+    let isCodegenOnly = false;
+
     if (
       protoFile &&
       !Array.isArray(protoFile) &&
@@ -230,26 +239,13 @@ export class RPCService extends EventEmitter {
       _protoFile = readProtofiles(protoFile);
       // generate grpc js code
       if (!graphql && generatedCode) {
-        let grpcCodeFiles;
-
         if (!generatedCode.outDir) throw new Error('outDir is required');
-        if (!packages) {
-          grpcCodeFiles = genGrpcJs(protoFile, generatedCode.outDir);
 
-          // define generated service
-          this.generatedGrpcService = {};
-          // require all generated grpc js module
-          grpcCodeFiles.services.forEach((grpcFile) => {
-            const tmpService = require(grpcFile);
-            this.generatedGrpcService = Object.assign(
-              this.generatedGrpcService,
-              tmpService,
-            );
-          });
-          return undefined;
-        }
+        isCodegenOnly = !packages;
+        const grpcCodeFiles = packages
+          ? getGrpcJsFiles(generatedCode.outDir)
+          : genGrpcJs(protoFile, generatedCode.outDir);
 
-        grpcCodeFiles = getGrpcJsFiles(generatedCode.outDir);
         // define generated service
         this.generatedGrpcService = {};
         // require all generated grpc js module
@@ -264,6 +260,11 @@ export class RPCService extends EventEmitter {
     } else if (!protoFile) {
       throw new Error('No proto file provided');
     }
+
+    // Pure codegen mode: gRPC JS runtime was generated above and there's no
+    // `packages` definition to load a server/client from, so there's nothing
+    // left to initialize.
+    if (isCodegenOnly) return;
 
     // load protobuf
     this.packageDefinition = protoLoader.loadSync(
@@ -327,17 +328,19 @@ export class RPCService extends EventEmitter {
             service.implementation || {},
           );
         });
-
-        // add additional service that is not defined in the package
-        if (this.extServices) {
-          this.extServices.forEach((item) => {
-            this.grpcServer.addService(item.service, item.implementation);
-          });
-        }
       } else {
         throw new Error('Unable to initialize gRPC server');
       }
     });
+
+    // Add additional services that are not defined in any package. Done once
+    // here rather than per package -- registering the same service twice
+    // makes grpc-js throw.
+    if (this.grpcServer && this.extServices) {
+      this.extServices.forEach((item) => {
+        this.grpcServer.addService(item.service, item.implementation);
+      });
+    }
   }
 
   private __init_packages_mapping(

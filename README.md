@@ -2,9 +2,12 @@
 
 ![test](https://github.com/single9/node-grpc-graphql-server/workflows/test/badge.svg?branch=master) ![npm](https://github.com/single9/node-grpc-graphql-server/workflows/npm/badge.svg) [![codecov](https://codecov.io/gh/single9/node-grpc-graphql-server/branch/main/graph/badge.svg?token=EWQFDL2X0N)](https://codecov.io/gh/single9/node-grpc-graphql-server)
 
+> **Maintenance mode:** this project only receives bug and security fixes; no new features are planned.
+> v1 is no longer supported — please upgrade to v2.
+
 ## Installation
 
-    npm install express @grpc/proto-loader apollo-server-express grpc-graphql-server @graphql-tools/schema
+    npm install express @grpc/proto-loader @apollo/server @as-integrations/express4 grpc-graphql-server @graphql-tools/schema graphql
 
 ### (Optional) gRPC JS runtime library
 
@@ -57,7 +60,9 @@ message HelloReply {
 Create a file named index.js. This is your server.
 
 ```js
-const app = require("express")();
+const express = require("express");
+const app = express();
+const { expressMiddleware } = require("@as-integrations/express4");
 const RPCServer = require("grpc-graphql-server").RPCServer;
 
 function response(resData, callback) {
@@ -123,14 +128,19 @@ const rpcServer = new RPCServer({
 
 rpcServer.once("grpc_server_started", async (payload) => {
   console.log("gRPC server started at " + payload);
-});
 
-if (rpcServer.gqlServer) {
-  rpcServer.gqlServer.applyMiddleware({ app });
-}
+  if (rpcServer.gqlServer) {
+    await rpcServer.gqlServer.start();
+    app.use(
+      "/graphql",
+      express.json(),
+      expressMiddleware(rpcServer.gqlServer, { context: rpcServer.gqlContext })
+    );
+  }
 
-app.listen(3000, () => {
-  console.log("Server started. http://localhost:3000");
+  app.listen(3000, () => {
+    console.log("Server started. http://localhost:3000");
+  });
 });
 ```
 
@@ -319,8 +329,8 @@ const rpcServer = new RPCServer({
     // auto: false, // Set false to disable default GraphQL generator if you don't need.
     schemaPath: 'path/to/your/graphql/schema.js',
     resolverPath: 'path/to/your/graphql/resolver.js',
-    // apolloConfig: { // other config you want to configure
-    //   tracing: true
+    // apolloConfig: { // other `ApolloServerOptions` from `@apollo/server` you want to configure
+    //   includeStacktraceInErrorResponses: false
     //}
   },
   ...
@@ -329,10 +339,14 @@ const rpcServer = new RPCServer({
 
 #### Context
 
-We use [ApolloServer](https://www.apollographql.com/) to build our GraphQL server. It provides `context` argument for passing things
-that any resolver might need, like authentication, databases, etc.
+We use [Apollo Server](https://www.apollographql.com/) to build our GraphQL server. It provides a `context`
+function for passing things that any resolver might need, like authentication, databases, etc.
 
-Ref: ([The context argument - ApolloServer](https://www.apollographql.com/docs/apollo-server/data/resolvers/#the-context-argument))
+Ref: ([Context - Apollo Server](https://www.apollographql.com/docs/apollo-server/data/context))
+
+**Note:** Since Apollo Server 4, `context` is no longer passed to the `ApolloServer` constructor. Set it on
+`graphql.context` as before, but you also need to pass `rpcServer.gqlContext` to `expressMiddleware` yourself
+when you wire up the server (see the [Server](#server) example above).
 
 ```js
 const rpcServer = new RPCServer({
@@ -345,6 +359,9 @@ const rpcServer = new RPCServer({
   },
   ...
 });
+
+// Wire it up when mounting the GraphQL endpoint:
+// app.use('/graphql', express.json(), expressMiddleware(rpcServer.gqlServer, { context: rpcServer.gqlContext }));
 ```
 
 ##### Example
@@ -390,10 +407,27 @@ Only client need.
 
 ```js
 const client = initRPCClient({
+  protoFile: `${__dirname}/protos/hello.proto`,
+  packages: [
+    {
+      name: "helloworld",
+      services: [
+        {
+          name: "Greeter",
+          port: 50052,
+        },
+      ],
+    },
+  ],
   originalClass: true,
 });
 
 client.on("grpc_client_error", (err) => console.log(err));
+
+// `client` is the RPCClient instance itself when `originalClass: true`;
+// its `.clients` property is the same package/service call map you'd get
+// back from `initRPCClient()` without that flag.
+client.clients.helloworld.Greeter.SayHello({ name: "Duye" });
 ```
 
 ### Event: Server

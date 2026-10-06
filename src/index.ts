@@ -4,4 +4,5 @@ export * from './libs/rpc-server';
 export * from './libs/rpc-service';
 export * from './libs/rpc-client';
 export * from './libs/controller';
+export { genGrpcJs } from './libs/tools';
 export { grpc };

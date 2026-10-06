@@ -1,14 +1,19 @@
 import fs from 'fs';
+import * as http from 'http';
 import * as grpc from '@grpc/grpc-js';
+import type {
+  DocumentNode,
+  ObjectTypeDefinitionNode,
+  ObjectTypeExtensionNode,
+} from 'graphql';
 import { EventEmitter } from 'events';
 import RPCService, { RPCServiceGrpcParams, ParamGraphql } from './rpc-service';
 import { genResolvers, readDir } from './tools';
+import { genSubscriptionResolvers } from './streaming';
 
 type GqlConfigs = {
   logger: any;
-  context: any;
   formatError: any;
-  playground: any;
   introspection: any;
   schema?: any;
 };
@@ -20,20 +25,88 @@ function initDefaultGqlConfigs(): ParamGraphql {
     resolverPath: undefined,
     context: undefined,
     formatError: undefined,
-    playground: undefined,
     introspection: undefined,
     apolloConfig: undefined,
     logger: undefined,
   };
 }
 
+/**
+ * `genResolvers` builds Query/Mutation resolvers per package from the config
+ * alone, but the converter skips wiring a package that ends up contributing
+ * no query/mutate fields (e.g. one made up entirely of streaming RPCs). Drop
+ * those entries so `makeExecutableSchema` can keep validating that every
+ * resolver matches the schema.
+ */
+function pickSchemaRootFields(
+  resolvers: ReturnType<typeof genResolvers>,
+  gqlSchema: string,
+) {
+  const rootFields: { [rootType: string]: Set<string> } = {
+    Query: new Set(),
+    Mutation: new Set(),
+  };
+
+  // Lazily required like the other GraphQL dependencies: `graphql` is an
+  // optional peer, so gRPC-only users must be able to load this module
+  // without it installed.
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { Kind, parse } = require('graphql');
+
+  (parse(gqlSchema) as DocumentNode).definitions.forEach((node) => {
+    if (
+      node.kind !== Kind.OBJECT_TYPE_DEFINITION &&
+      node.kind !== Kind.OBJECT_TYPE_EXTENSION
+    ) {
+      return;
+    }
+
+    const def = node as ObjectTypeDefinitionNode | ObjectTypeExtensionNode;
+
+    if (rootFields[def.name.value]) {
+      (def.fields || []).forEach((field) =>
+        rootFields[def.name.value].add(field.name.value),
+      );
+    }
+  });
+
+  const picked: ReturnType<typeof genResolvers> = {};
+
+  Object.keys(resolvers).forEach((rootType) => {
+    const fields = Object.keys(resolvers[rootType]).filter((name) =>
+      rootFields[rootType].has(name),
+    );
+
+    if (fields.length > 0) {
+      picked[rootType] = {};
+      fields.forEach((name) => {
+        picked[rootType][name] = resolvers[rootType][name];
+      });
+    }
+  });
+
+  return picked;
+}
+
 export class RPCServer extends EventEmitter {
   gqlServer: any;
+  /**
+   * Context function from `graphql.context`. Apollo Server 4 no longer
+   * accepts `context` in its constructor, so pass this yourself to
+   * `expressMiddleware(rpcServer.gqlServer, { context: rpcServer.gqlContext })`.
+   */
+  gqlContext: (() => any) | undefined;
   rpcService: RPCService;
   port: any;
   forceShutdown: () => any;
   tryShutdown: () => Promise<unknown>;
   gqlConfigs: GqlConfigs;
+  /**
+   * `PubSubEngine` backing server-streaming RPCs exposed as GraphQL
+   * Subscriptions. Only set if the schema actually has a `Subscription`
+   * field (i.e. at least one server-streaming RPC was converted).
+   */
+  pubsub: any;
 
   constructor({
     ip = '0.0.0.0',
@@ -92,10 +165,10 @@ export class RPCServer extends EventEmitter {
       resolverPath,
       context,
       formatError,
-      playground,
       introspection,
       apolloConfig,
       logger,
+      pubsub,
     } = graphql;
 
     const auto = graphql.auto !== undefined ? graphql.auto : true;
@@ -141,19 +214,56 @@ export class RPCServer extends EventEmitter {
     // Construct a schema, using GraphQL schema language from
     // protobuf to GraphQL converter
     // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const ApolloServerExpress = require('apollo-server-express');
-    const { ApolloServer, gql } = ApolloServerExpress;
+    const { ApolloServer } = require('@apollo/server');
     const { gqlSchema } = this.rpcService;
-    registerTypes.push(
-      gql`
-        ${gqlSchema}
-      `,
-    );
+    registerTypes.push(gqlSchema);
 
     if (auto) {
       // Provide resolver functions for your schema fields
       // This section will automatically generate functions and resolvers
-      registerResolvers.push(genResolvers(this.rpcService.packages));
+      registerResolvers.push(
+        pickSchemaRootFields(genResolvers(this.rpcService.packages), gqlSchema),
+      );
+    }
+
+    // The converter only emits `scalar X` declarations for well-known
+    // scalars (Bytes/DateTime/JSON) that are actually referenced by the
+    // generated schema — mirror that here, since `makeExecutableSchema`
+    // throws if a resolver is supplied for a scalar the schema doesn't
+    // declare.
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { wellKnownScalars } = require('../converter/scalars');
+    const usedScalarResolvers = Object.keys(wellKnownScalars).reduce(
+      (acc, scalarName) => {
+        if (new RegExp(`\\bscalar ${scalarName}\\b`).test(gqlSchema)) {
+          acc[scalarName] = wellKnownScalars[scalarName];
+        }
+        return acc;
+      },
+      {},
+    );
+
+    if (Object.keys(usedScalarResolvers).length > 0) {
+      registerResolvers.push(usedScalarResolvers);
+    }
+
+    // The converter only emits `extend type Subscription { ... }` when at
+    // least one server-streaming RPC was converted; only stand up a PubSub
+    // and its resolvers in that case.
+    if (/extend type Subscription \{/.test(gqlSchema)) {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { PubSub } = require('graphql-subscriptions');
+      this.pubsub = pubsub || new PubSub();
+
+      if (auto) {
+        registerResolvers.push(
+          genSubscriptionResolvers(
+            this.rpcService.packages,
+            this.rpcService.packageObject,
+            this.pubsub,
+          ),
+        );
+      }
     }
 
     // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -161,9 +271,7 @@ export class RPCServer extends EventEmitter {
 
     this.gqlConfigs = {
       logger,
-      context,
       formatError,
-      playground,
       introspection,
     };
 
@@ -174,7 +282,39 @@ export class RPCServer extends EventEmitter {
     });
 
     this.gqlConfigs = Object.assign(this.gqlConfigs, apolloConfig);
+    this.gqlContext = context;
     this.gqlServer = new ApolloServer(this.gqlConfigs);
+  }
+
+  /**
+   * Wire up GraphQL Subscriptions over WebSocket (`graphql-ws`), attached to
+   * an `http.Server` you already own — the same one you get back from
+   * `app.listen()`. Apollo Server 4 dropped built-in subscription transport,
+   * so this is required for any `Subscription` fields (server-streaming
+   * RPCs) to be reachable; the HTTP endpoint alone can't serve them.
+   *
+   * Mirrors the existing "bring your own Express app, call
+   * `expressMiddleware` yourself" pattern used for the HTTP endpoint.
+   */
+  useSubscriptions(httpServer: http.Server, opts: { path?: string } = {}) {
+    if (!this.gqlConfigs || !this.gqlConfigs.schema) {
+      throw new Error('GraphQL is not enabled');
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { WebSocketServer } = require('ws');
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { useServer } = require('graphql-ws/use/ws');
+
+    const wsServer = new WebSocketServer({
+      server: httpServer,
+      path: opts.path || '/graphql',
+    });
+
+    return useServer(
+      { schema: this.gqlConfigs.schema, context: this.gqlContext },
+      wsServer,
+    );
   }
 }
 
